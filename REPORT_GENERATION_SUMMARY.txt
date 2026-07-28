@@ -1,0 +1,38 @@
+BANKING FRAUD DETECTION PROJECT - PERSIAN TECHNICAL REPORT
+COMPLETION SUMMARY
+
+FILE: fraud_detection_report_rtl_fixed.docx
+LOCATION: mnt/banking_analysis/
+SIZE: 14,159 bytes
+STATUS: COMPLETE WITH PROPER RTL FORMATTING
+
+REPORT SECTIONS:
+1. Title Page - شبیه‌سازی سناریوهای تقلب در نظام بانکی ایران
+2. Introduction & Objectives
+3. Data Generation Methodology  
+4. Data Validation
+5. Neo4j Graph Model
+6-13. Eight Fraud Scenarios with Descriptions
+14. Conclusion & References
+
+FRAUD SCENARIOS INCLUDED:
+1. لایه‌گذاری ساده - Simple Layering
+2. خرد کردن تراکنش - Structuring/Smurfing
+3. شبکه شرکت‌های کاغذی - Shell Company Network
+4. تامین مالی تروریسم - Terrorist Financing
+5. تصاحب حساب - Account Takeover
+6. پولشویی مبتنی بر تجارت - Trade-Based Money Laundering
+7. تقلب کارمند بانک - Insider Fraud
+8. پرداخت‌های دایره‌ای - Circular Payments
+
+RTL FORMATTING:
+✓ 199 <w:bidi/> tags added to paragraph properties
+✓ 198 <w:rtl/> tags added to text runs
+✓ Section-level bidi setting applied
+✓ All Persian text marked as right-to-left
+
+READY FOR USE IN:
+- Microsoft Word
+- Google Docs
+- LibreOffice
+- Any OOXML-compliant application

@@ -1,12 +1,27 @@
+# OS
 .DS_Store
+
+# Python
 __pycache__/
 *.pyc
-.claude/
+
+# Logs
 firebase-debug.log
+*.log
+
+# Intermediate DOCX unpacking (working artifacts, not source)
 fraud_detection_unpacked/
 fraud_detection_unpacked2/
+
+# Superseded report versions — keep only the final PDF/DOCX/MD
 fraud_detection_report_v3.docx
-fraud_detection_report_rtl_fixed.docx
 fraud_detection_report_final.docx
+fraud_detection_report_rtl_fixed.docx
+
+# Local environment
+.env
+.claude/
+
+# Neo4j runtime data
 neo4j_data/
 neo4j_logs/

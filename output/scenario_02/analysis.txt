@@ -1,0 +1,34 @@
+SCENARIO 02: STRUCTURING (SMURFING)
+====================================
+Pattern: Multiple small deposits below 50M reporting threshold
+
+Total Transactions: 86
+Suspicious (>40M): 17
+Aggregator Account: IR..5887
+
+Structuring Deposits (45M each):
+  14030101 | IR..6296 → IR..5887 | 45.0M
+  14030101 | IR..6657 → IR..5887 | 45.0M
+  14030102 | IR..1686 → IR..5887 | 45.0M
+  14030102 | IR..6511 → IR..5887 | 45.0M
+  14030103 | IR..8460 → IR..5887 | 45.0M
+  14030103 | IR..5779 → IR..5887 | 45.0M
+  14030104 | IR..5634 → IR..5887 | 45.0M
+  14030104 | IR..6289 → IR..5887 | 45.0M
+  14030105 | IR..0466 → IR..5887 | 45.0M
+  14030105 | IR..6296 → IR..5887 | 45.0M
+  14030106 | IR..6657 → IR..5887 | 45.0M
+  14030106 | IR..1686 → IR..5887 | 45.0M
+  14030107 | IR..6511 → IR..5887 | 45.0M
+  14030107 | IR..5779 → IR..5887 | 45.0M
+  14030108 | IR..8460 → IR..5887 | 45.0M
+  14030127 | IR..3760 → IR..3760 | 48.5M
+
+Consolidation Transfer:
+  14030112 | IR..5887 → IR..5765 | 650.0M
+
+Key Indicators:
+- 15 transactions of exactly 45M (below 50M threshold)
+- Multiple accounts linked by IP/device
+- Temporal clustering
+- Final consolidation to single 650M outbound

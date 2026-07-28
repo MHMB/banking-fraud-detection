@@ -1,0 +1,43 @@
+================================================================================
+SCENARIO 06 - TEXT CONTENT FOR DOCUMENT
+================================================================================
+
+=== SECTION ۱۱: سناریوی ۰۶: پولشویی مبتنی بر تجارت ===
+English: Trade-Based Money Laundering
+
+--- ۱۱.۱ توضیح سناریو ---
+یک شرکت واردکننده کالایی را با فاکتور ۱ میلیارد ریالی وارد می‌کند در حالی که ارزش واقعی ۲۰۰ میلیون ریال است (۸۰٪ بیش‌فاکتوری). پرداخت از طریق واسطه منطقه آزاد مسیریابی شده و ۱۵٪ کارمزد در هر چرخه کسر می‌شود.
+
+--- ۱۱.۲ نشانگرهای تقلب ---
+فاکتورهای بیش از حد، مسیریابی از منطقه آزاد، شرکت‌های کاغذی، تراکنش‌های پرارزش مشابه
+
+--- ۱۱.۳ تصویر گراف ---
+Image: neo4j_graph.png (from Neo4j Browser export)
+Image: transaction_flow_graph.png (matplotlib generated)
+Image: amount_distribution.png (matplotlib generated)
+Image: channel_distribution.png (matplotlib generated)
+Caption: نمودار جریان تراکنش سناریوی 06
+
+--- ۱۱.۴ کوئری Cypher ---
+```cypher
+MATCH (sender:Account)-[:SENT]->(tx:Transaction {scenario:'scenario_06'})-[:RECEIVED]->(receiver:Account)
+WHERE tx.amount > 500000000
+RETURN sender.sheba AS sender, receiver.sheba AS receiver, tx.amount AS amount, tx.date AS date
+ORDER BY tx.amount DESC
+```
+
+--- Statistics ---
+Pattern: Over-Invoicing
+Total Transactions: 70
+Fraudulent: ~30
+Legitimate: ~40
+Total Volume: 9.74B IRR
+Average: 139.1M IRR
+
+================================================================================
+IMAGE FILES IN THIS FOLDER:
+  1. neo4j_graph.png          - Neo4j Browser graph capture (move from Downloads)
+  2. transaction_flow_graph.png - Matplotlib transaction flow network graph
+  3. amount_distribution.png   - Scatter plot of transaction amounts
+  4. channel_distribution.png  - Pie chart of channel distribution
+================================================================================

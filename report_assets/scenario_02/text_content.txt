@@ -1,0 +1,44 @@
+================================================================================
+SCENARIO 02 - TEXT CONTENT FOR DOCUMENT
+================================================================================
+
+=== SECTION ۷: سناریوی ۰۲: خرد کردن تراکنش ===
+English: Structuring / Smurfing
+
+--- ۷.۱ توضیح سناریو ---
+مبالغ بزرگ به تراکنش‌های کوچکتر از سقف گزارش‌دهی (۵۰ میلیون ریال) تقسیم می‌شوند. ۱۵ تراکنش هرکدام ۴۵ میلیون ریال از حساب‌های مختلف به یک حساب تجمیع‌کننده واریز شده و سپس ۶۵۰ میلیون ریال به خارج انتقال می‌یابد.
+
+--- ۷.۲ نشانگرهای تقلب ---
+مبالغ تکراری زیر سقف، حساب‌های مرتبط با IP مشترک، خوشه‌بندی زمانی، تجمیع نهایی
+
+--- ۷.۳ تصویر گراف ---
+Image: neo4j_graph.png (from Neo4j Browser export)
+Image: transaction_flow_graph.png (matplotlib generated)
+Image: amount_distribution.png (matplotlib generated)
+Image: channel_distribution.png (matplotlib generated)
+Caption: نمودار جریان تراکنش سناریوی 02
+
+--- ۷.۴ کوئری Cypher ---
+```cypher
+MATCH (a:Account)-[:SENT]->(tx:Transaction)
+WHERE tx.scenario = 'scenario_02'
+  AND tx.amount >= 40000000 AND tx.amount <= 50000000
+RETURN a.sheba AS sender, tx.amount AS amount, tx.date AS date
+ORDER BY tx.date
+```
+
+--- Statistics ---
+Pattern: Below Threshold
+Total Transactions: 86
+Fraudulent: ~50
+Legitimate: ~35
+Total Volume: 1.98B IRR
+Average: 23.1M IRR
+
+================================================================================
+IMAGE FILES IN THIS FOLDER:
+  1. neo4j_graph.png          - Neo4j Browser graph capture (move from Downloads)
+  2. transaction_flow_graph.png - Matplotlib transaction flow network graph
+  3. amount_distribution.png   - Scatter plot of transaction amounts
+  4. channel_distribution.png  - Pie chart of channel distribution
+================================================================================

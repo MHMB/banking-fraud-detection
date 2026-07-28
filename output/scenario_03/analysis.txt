@@ -1,0 +1,21 @@
+SCENARIO 03: SHELL COMPANY NETWORK
+====================================
+Pattern: Circular business transactions A→B→C→A
+
+Total Transactions: 51
+High-value invoices: 6
+Shell Company Accounts: 3
+
+Invoice Flow:
+  14030101 | IR..6055 → IR..1571 | 500.0M | فاکتور #INV-001 - خدمات مشاوره‌ای
+  14030103 | IR..1571 → IR..6876 | 450.0M | فاکتور #INV-002 - خدمات مدیریتی
+  14030105 | IR..6876 → IR..6055 | 480.0M | فاکتور #INV-003 - خدمات بازرگانی
+  14030110 | IR..6055 → IR..1571 | 485.0M | فاکتور #INV-004 - خدمات مشاوره‌ای
+  14030112 | IR..1571 → IR..6876 | 440.0M | فاکتور #INV-005 - مشاوره مدیریت
+  14030114 | IR..6876 → IR..6055 | 475.0M | فاکتور #INV-006 - خدمات بازرگانی
+
+Key Indicators:
+- Circular flow of funds (A→B→C→A)
+- Vague invoice descriptions (consulting, management fees)
+- Companies at residential addresses
+- Round-tripping with value extraction

@@ -1,0 +1,42 @@
+================================================================================
+SCENARIO 03 - TEXT CONTENT FOR DOCUMENT
+================================================================================
+
+=== SECTION ۸: سناریوی ۰۳: شبکه شرکت‌های کاغذی ===
+English: Shell Company Network (A→B→C→A)
+
+--- ۸.۱ توضیح سناریو ---
+سه شرکت کاغذی با آدرس مسکونی مشترک و فاکتورهای مبهم تراکنش‌های دایره‌ای انجام می‌دهند: A→B→C→A. این چرخه با استخراج ارزش در هر مرحله تکرار می‌شود.
+
+--- ۸.۲ نشانگرهای تقلب ---
+جریان دایره‌ای وجوه، فاکتورهای مبهم، آدرس مسکونی، عدم فعالیت تجاری واقعی
+
+--- ۸.۳ تصویر گراف ---
+Image: neo4j_graph.png (from Neo4j Browser export)
+Image: transaction_flow_graph.png (matplotlib generated)
+Image: amount_distribution.png (matplotlib generated)
+Image: channel_distribution.png (matplotlib generated)
+Caption: نمودار جریان تراکنش سناریوی 03
+
+--- ۸.۴ کوئری Cypher ---
+```cypher
+MATCH path=(a1:Account)-[:SENT]->(tx1:Transaction {scenario:'scenario_03'})-[:RECEIVED]->(a2:Account)-[:SENT]->(tx2:Transaction {scenario:'scenario_03'})-[:RECEIVED]->(a3:Account)-[:SENT]->(tx3:Transaction {scenario:'scenario_03'})-[:RECEIVED]->(a4:Account)
+WHERE a1.sheba = a4.sheba OR tx1.amount >= 100000000
+RETURN path LIMIT 50
+```
+
+--- Statistics ---
+Pattern: A→B→C→A
+Total Transactions: 51
+Fraudulent: ~25
+Legitimate: ~25
+Total Volume: 3.17B IRR
+Average: 62.1M IRR
+
+================================================================================
+IMAGE FILES IN THIS FOLDER:
+  1. neo4j_graph.png          - Neo4j Browser graph capture (move from Downloads)
+  2. transaction_flow_graph.png - Matplotlib transaction flow network graph
+  3. amount_distribution.png   - Scatter plot of transaction amounts
+  4. channel_distribution.png  - Pie chart of channel distribution
+================================================================================

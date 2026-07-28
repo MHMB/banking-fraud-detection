@@ -1,0 +1,20 @@
+SCENARIO 01: SIMPLE LAYERING
+============================
+Pattern: A → B → C → D in quick succession
+
+Total Transactions: 70
+Suspicious (>40M): 5
+Chain Accounts: 4
+
+Fraud Chain Flow:
+  14030101 | IR..6511 → IR..8460 | 44.5M | انتقال وجه
+  14030101 | IR..6511 → IR..6511 | 45.0M | واریز نقدی
+  14030102 | IR..8460 → IR..5634 | 44.0M | انتقال وجه
+  14030103 | IR..5634 → IR..0466 | 43.5M | انتقال وجه
+  14030104 | IR..0466 → IR..0466 | 40.0M | برداشت وجه
+
+Key Indicators:
+- Rapid movement through multiple accounts (3 days)
+- Gradual decrease (commission extraction at each layer)
+- All accounts share contact information
+- Unusual pattern for final account (normally low activity)

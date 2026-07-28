@@ -1,0 +1,44 @@
+================================================================================
+SCENARIO 01 - TEXT CONTENT FOR DOCUMENT
+================================================================================
+
+=== SECTION ۶: سناریوی ۰۱: لایه‌گذاری ساده ===
+English: Simple Layering (A→B→C→D)
+
+--- ۶.۱ توضیح سناریو ---
+در این سناریو، وجوه غیرقانونی به سرعت از طریق چندین حساب جابجا می‌شود (A→B→C→D) تا ردیابی منشاء آن دشوار گردد. در هر لایه، درصدی به عنوان کارمزد کسر می‌شود.
+
+--- ۶.۲ نشانگرهای تقلب ---
+انتقال سریع در ۳ روز، کاهش تدریجی مبلغ، اشتراک اطلاعات تماس، فعالیت غیرعادی حساب D
+
+--- ۶.۳ تصویر گراف ---
+Image: neo4j_graph.png (from Neo4j Browser export)
+Image: transaction_flow_graph.png (matplotlib generated)
+Image: amount_distribution.png (matplotlib generated)
+Image: channel_distribution.png (matplotlib generated)
+Caption: نمودار جریان تراکنش سناریوی 01
+
+--- ۶.۴ کوئری Cypher ---
+```cypher
+MATCH path=(a1:Account)-[:SENT]->(tx1:Transaction)-[:RECEIVED]->(a2:Account)-[:SENT]->(tx2:Transaction)-[:RECEIVED]->(a3:Account)
+WHERE tx1.scenario = 'scenario_01' AND tx2.scenario = 'scenario_01'
+  AND tx1.amount >= 40000000
+RETURN path
+LIMIT 50
+```
+
+--- Statistics ---
+Pattern: A→B→C→D
+Total Transactions: 70
+Fraudulent: ~15
+Legitimate: ~55
+Total Volume: 748M IRR
+Average: 10.7M IRR
+
+================================================================================
+IMAGE FILES IN THIS FOLDER:
+  1. neo4j_graph.png          - Neo4j Browser graph capture (move from Downloads)
+  2. transaction_flow_graph.png - Matplotlib transaction flow network graph
+  3. amount_distribution.png   - Scatter plot of transaction amounts
+  4. channel_distribution.png  - Pie chart of channel distribution
+================================================================================

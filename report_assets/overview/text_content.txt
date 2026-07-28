@@ -1,0 +1,114 @@
+================================================================================
+OVERVIEW SECTION - TEXT CONTENT FOR DOCUMENT
+================================================================================
+
+=== SECTION: Title Page ===
+Title: شبیه‌سازی سناریوهای تقلب در نظام بانکی ایران
+Subtitle: گزارش فنی جامع
+Author: تهیه‌کننده: Mohammad Motiebirjandi
+Date: تاریخ: اسفند ۱۴۰۴
+Database: پایگاه داده: Neo4j 5.26.2
+
+=== SECTION 1: Introduction & Objectives (مقدمه و اهداف پروژه) ===
+Image: (none)
+
+Text:
+این پروژه با هدف شبیه‌سازی سناریوهای مختلف تقلب در سیستم بانکی ایران طراحی شده‌ است. در این راستا، هشت سناریوی متنوع از تقلب‌های رایج در نظام بانکی شناسایی و با داده‌های مصنوعی ولی واقع‌گرایانه پیاده‌سازی شده‌اند.
+
+داده‌های تولید شده شامل ۱۸۰ حساب بانکی متعلق به ۱۵۰ مشتری در ۱۰ بانک ایرانی است که در مجموع ۶۱۰ تراکنش در هشت سناریو تولید شده است. تمامی داده‌ها به پایگاه داده گرافی Neo4j وارد شده و امکان تحلیل روابط پیچیده بین حساب‌ها و تراکنش‌ها را فراهم می‌آورد.
+
+--- Subsection 1.1: Tools & Technologies (ابزارها و فناوری‌های مورد استفاده) ---
+Image: tools_table.png
+Table Data:
+  | Tool                    | Description                                      |
+  | Python 3.10+            | تولید داده‌های مصنوعی و اعتبارسنجی              |
+  | Neo4j 5.26.2            | پایگاه داده گرافی برای ذخیره و تحلیل            |
+  | Docker                  | اجرای محیط Neo4j به صورت کانتینری              |
+  | Cypher Query Language   | زبان پرس‌وجوی گراف برای تحلیل روابط            |
+  | NetworkX / Matplotlib   | تحلیل و مصورسازی گراف تراکنش‌ها               |
+
+=== SECTION 2: Data Generation Methodology (روش تولید داده) ===
+Image: (none)
+
+Text:
+داده‌های این پروژه به صورت برنامه‌نویسی شده و کاملاً مصنوعی هستند ولی با رعایت استانداردهای واقعی بانکی ایران تولید شده‌اند.
+
+--- Subsection 2.1: Account Generation (تولید حساب‌ها) ---
+این اسکریپت ۱۸۰ حساب بانکی با شماره شبای معتبر (۲۶ کاراکتری با الگوریتم mod-97)، کد ملی معتبر (۱۰ رقمی با رقم کنترل)، و شناسه شهاب برای ۱۵۰ مشتری در ۱۰ بانک مختلف ایرانی تولید می‌کند.
+
+--- Subsection 2.2: Transaction Generation (تولید تراکنش‌ها) ---
+برای هر سناریو، ترکیبی از تراکنش‌های مشکوک و معمولی تولید شده است. هر تراکنش دارای ۱۲ فیلد شامل شناسه تراکنش، تاریخ، ساعت، شبای فرستنده، شبای گیرنده، مبلغ، ارز، نوع، توضیحات، شماره مرجع، کانال و وضعیت است.
+
+=== SECTION 3: Data Validation (اعتبارسنجی داده‌ها) ===
+Text:
+پس از تولید داده‌ها، فرایند اعتبارسنجی جامعی برای اطمینان از کیفیت و درستی داده‌ها انجام شد.
+
+--- Subsection 3.1: Data Status Overview (تصویر وضعیت داده‌ها) ---
+Image: data_validation_chart.png
+Caption: نمودار وضعیت و اعتبارسنجی داده‌ها
+
+Table Data:
+  | Indicator              | Value           | Status |
+  | Total Accounts         | 180             | PASS   |
+  | Total Customers        | 150             | PASS   |
+  | Total Transactions     | 610             | PASS   |
+  | Null in sender_sheba   | 0               | PASS   |
+  | Null in receiver_sheba | 0               | PASS   |
+  | Duplicate Transactions | 0               | PASS   |
+  | Negative Amounts       | 0               | PASS   |
+  | Zero Amounts           | 4 (Scenario 07) | WARN   |
+
+=== SECTION 4: Neo4j Graph Model (مدل گرافی Neo4j) ===
+Text:
+پایگاه داده گرافی Neo4j برای نمایش روابط بین حساب‌ها، مشتریان، بانک‌ها و تراکنش‌ها استفاده شد. این ساختار امکان تحلیل جریان پول و شناسایی الگوهای تقلب را فراهم می‌کند.
+
+Image: graph_model_tables.png
+
+--- Subsection 4.1: Nodes (گره‌ها) ---
+  | Node        | Count |
+  | Bank        | 10    |
+  | Customer    | 150   |
+  | Account     | 180+  |
+  | Transaction | 610+  |
+
+--- Subsection 4.2: Relationships (روابط) ---
+  | Relationship    | Direction              |
+  | BELONGS_TO_BANK | Account → Bank         |
+  | OWNS_ACCOUNT    | Customer → Account     |
+  | SENT            | Account → Transaction  |
+  | RECEIVED        | Transaction → Account  |
+
+=== SECTION 5: Scenarios Summary (خلاصه سناریوهای تقلب) ===
+Image: scenario_summary_table.png
+Image: volume_comparison_chart.png
+Caption: جدول زیر خلاصه اطلاعات هشت سناریوی اصلی تقلب بانکی را نشان می‌دهد
+
+Table Data:
+  | # | Name                 | Count | Total Volume | Average  | Pattern           |
+  |01 | Simple Layering      | 70    | 748M         | 10.7M    | A→B→C→D           |
+  |02 | Structuring          | 86    | 1.98B        | 23.1M    | Below Threshold   |
+  |03 | Shell Company        | 51    | 3.17B        | 62.1M    | A→B→C→A           |
+  |04 | Terrorist Financing  | 122   | 1.27B        | 10.4M    | Many→One→Foreign  |
+  |05 | Account Takeover     | 56    | 1.55B        | 27.7M    | Behavior Change   |
+  |06 | Trade-Based ML       | 70    | 9.74B        | 139.1M   | Over-Invoicing    |
+  |07 | Insider Fraud        | 51    | 1.73B        | 33.8M    | Employee Abuse    |
+  |08 | Circular Payments    | 104   | 13.34B       | 128.3M   | 18-Hop Circle     |
+
+=== SECTION 14: Conclusion (نتیجه‌گیری) ===
+Image: (none)
+
+Text:
+در این پروژه هشت سناریوی اصلی تقلب بانکی با داده‌های واقع‌گرایانه شبیه‌سازی شد. این سناریوها طیف گسترده‌ای از تقلب‌های رایج بانکی را پوشش می‌دهند از جمله لایه‌گذاری، خرد کردن، شرکت‌های کاغذی، تامین مالی تروریسم، تصاحب حساب، پولشویی مبتنی بر تجارت، تقلب داخلی و پرداخت‌های دایره‌ای.
+
+استفاده از پایگاه داده گرافی Neo4j امکان تحلیل روابط پیچیده بین حساب‌ها، مشتریان و تراکنش‌ها را فراهم آورده و کوئری‌های Cypher ارائه شده ابزارهای عملی برای تشخیص هر نوع تقلب در اختیار تحلیلگران قرار می‌دهد.
+
+با استفاده از این سامانه می‌توان سیاست‌های تشخیص تقلب را بهبود داد و از مخاطرات مالی و اعتباری بانکی کاهش داد.
+
+================================================================================
+IMAGE FILES IN THIS FOLDER:
+  1. data_validation_chart.png   - Bar chart of data quality metrics
+  2. scenario_summary_table.png  - Summary table of all 8 scenarios
+  3. tools_table.png             - Tools & technologies table
+  4. graph_model_tables.png      - Neo4j nodes & relationships tables
+  5. volume_comparison_chart.png - Bar chart comparing transaction volumes
+================================================================================

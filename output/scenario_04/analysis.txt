@@ -1,0 +1,20 @@
+SCENARIO 04: TERRORIST FINANCING
+==================================
+Pattern: Small donations aggregating through intermediaries
+
+Total Transactions: 122
+Donations (<10M): 72
+Large Transfers (>50M): 2
+Hub (Charity): IR..5887
+
+Aggregation Flow:
+  - 72 donors contributing 1-5M each
+  - Total collected: 261.2M
+  - Charity → NGO: 200M
+  - NGO → Foreign entity: 180M
+
+Key Indicators:
+- Many-to-one aggregation pattern
+- Rapid pass-through (charity doesn't hold funds)
+- Ultimate beneficiary in high-risk jurisdiction
+- Some donors are foreign nationals

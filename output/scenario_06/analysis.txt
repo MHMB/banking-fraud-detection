@@ -1,0 +1,24 @@
+SCENARIO 06: TRADE-BASED MONEY LAUNDERING
+==========================================
+Pattern: Over/under-invoicing in international trade
+
+Total Transactions: 70
+Trade Invoices (>500M): 10
+
+Invoice Details:
+  14030101 | IR..5887 → IR..6657 | 1000.0M | واردات الکترونیکی - فاکتور #100
+  14030103 | IR..6657 → IR..6296 | 850.0M | پرداخت فاکتور #100 - کارمزد: 15%
+  14030121 | IR..5887 → IR..6657 | 1000.0M | واردات الکترونیکی - فاکتور #101
+  14030123 | IR..6657 → IR..6296 | 850.0M | پرداخت فاکتور #101 - کارمزد: 15%
+  14030211 | IR..5887 → IR..6657 | 1000.0M | واردات الکترونیکی - فاکتور #102
+  14030213 | IR..6657 → IR..6296 | 850.0M | پرداخت فاکتور #102 - کارمزد: 15%
+  14030231 | IR..5887 → IR..6657 | 1000.0M | واردات الکترونیکی - فاکتور #103
+  14030251 | IR..5887 → IR..6657 | 1000.0M | واردات الکترونیکی - فاکتور #104
+  14030303 | IR..6657 → IR..6296 | 850.0M | پرداخت فاکتور #103 - کارمزد: 15%
+  14030323 | IR..6657 → IR..6296 | 850.0M | پرداخت فاکتور #104 - کارمزد: 15%
+
+Key Indicators:
+- Trade invoices significantly inflated (1B vs 200M actual)
+- Routing through free zone intermediaries
+- 15% commission extracted at each cycle
+- Multiple similar high-value transactions
