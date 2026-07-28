@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+*.pyc
+.claude/
+firebase-debug.log
+fraud_detection_unpacked/
+fraud_detection_unpacked2/
+fraud_detection_report_v3.docx
+fraud_detection_report_rtl_fixed.docx
+fraud_detection_report_final.docx
+neo4j_data/
+neo4j_logs/
