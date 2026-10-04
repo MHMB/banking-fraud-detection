@@ -10,6 +10,7 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyArrowPatch
 import networkx as nx
 import numpy as np
+import csv
 from neo4j_helper import query
 from collections import defaultdict
 
@@ -23,7 +24,9 @@ plt.rcParams['font.family'] = 'DejaVu Sans'
 
 def sheba_short(s):
     """Shorten sheba for display: IR...last4"""
-    if not s or len(s) < 8:
+    if not s:
+        return "cash"
+    if len(s) < 8:
         return str(s)
     return f"IR..{s[-4:]}"
 
@@ -68,8 +71,10 @@ def generate_data_health():
     """)
 
     # Validation checks
-    null_sender = query("MATCH (t:Transaction) WHERE t.sender_sheba IS NULL RETURN count(t) AS cnt")[0]['cnt']
-    null_receiver = query("MATCH (t:Transaction) WHERE t.receiver_sheba IS NULL RETURN count(t) AS cnt")[0]['cnt']
+    null_both = query("MATCH (t:Transaction) WHERE t.sender_sheba IS NULL AND t.receiver_sheba IS NULL RETURN count(t) AS cnt")[0]['cnt']
+    cash_tx = query("MATCH (t:Transaction) WHERE t.sender_sheba IS NULL OR t.receiver_sheba IS NULL RETURN count(t) AS cnt")[0]['cnt']
+    n_accounts = query("MATCH (a:Account) RETURN count(a) AS cnt")[0]['cnt']
+    n_customers = query("MATCH (c:Customer) RETURN count(c) AS cnt")[0]['cnt']
     zero_amount = query("MATCH (t:Transaction) WHERE t.amount = 0 RETURN count(t) AS cnt")[0]['cnt']
     negative = query("MATCH (t:Transaction) WHERE t.amount < 0 RETURN count(t) AS cnt")[0]['cnt']
     total_tx = sum(s['cnt'] for s in stats)
@@ -103,13 +108,13 @@ def generate_data_health():
     # Panel 3: Validation checks
     ax = axes[1, 0]
     checks = [
-        ('Total Accounts', 180, True),
-        ('Total Customers', 150, True),
+        ('Total Accounts', n_accounts, True),
+        ('Total Customers', n_customers, True),
         ('Total Transactions', total_tx, True),
-        ('Null sender_sheba', null_sender, null_sender == 0),
-        ('Null receiver_sheba', null_receiver, null_receiver == 0),
+        ('No sender and no receiver', null_both, null_both == 0),
+        ('Cash (one-sided) tx', cash_tx, True),
         ('Negative amounts', negative, negative == 0),
-        ('Zero amounts (S07)', zero_amount, True),
+        ('Zero amounts', zero_amount, zero_amount == 0),
     ]
     ax.axis('off')
     table_data = []
@@ -194,20 +199,19 @@ def generate_data_health():
     save_text(folder, 'description.txt', f"""DATA HEALTH & VALIDATION SUMMARY
 ================================
 Total Nodes: {sum(r['cnt'] for r in node_counts)}
-  - Banks: 10
-  - Customers: 150
-  - Accounts: 180
+  - Customers: {n_customers}
+  - Accounts: {n_accounts}
   - Transactions: {total_tx}
 
 Validation Results:
-  - Null sender_sheba: {null_sender}
-  - Null receiver_sheba: {null_receiver}
+  - Transactions with neither sender nor receiver: {null_both}
+  - Cash transactions (one side only, expected): {cash_tx}
   - Negative amounts: {negative}
-  - Zero amounts (Scenario 07 contact changes): {zero_amount}
+  - Zero amounts: {zero_amount}
 
 All Sheba numbers validated with mod-97 algorithm.
 All National IDs validated with check digit.
-Dates in Solar Hijri format (14030101 = 1403/01/01).
+Dates in Solar Hijri format (14030101 = 1403/01/01), validated against the calendar.
 """)
     print("   Done: data_health/")
 
@@ -216,31 +220,23 @@ Dates in Solar Hijri format (14030101 = 1403/01/01).
 # SCENARIO GRAPH GENERATOR
 # =============================================================
 def get_scenario_transactions(scenario):
-    """Get all transactions for a scenario from Neo4j."""
-    return query(f"""
-        MATCH (sender:Account)-[:SENT]->(t:Transaction {{scenario: '{scenario}'}})-[:RECEIVED]->(receiver:Account)
-        RETURN sender.sheba AS sender, receiver.sheba AS receiver,
+    """Get all transactions for a scenario from Neo4j (cash tx have one side None)."""
+    return query("""
+        MATCH (t:Transaction {scenario: $scenario})
+        RETURN t.sender_sheba AS sender, t.receiver_sheba AS receiver,
                t.amount AS amount, t.date AS date, t.transaction_id AS txid,
                t.description AS description, t.channel AS channel, t.type AS type
         ORDER BY t.date, t.time
-    """)
+    """, {'scenario': scenario})
 
-def get_fraud_transactions(scenario, min_amount=None, description_filter=None):
-    """Get high-value / suspicious transactions."""
-    where_clauses = [f"t.scenario = '{scenario}'"]
-    if min_amount:
-        where_clauses.append(f"t.amount >= {min_amount}")
-    if description_filter:
-        where_clauses.append(f"t.description CONTAINS '{description_filter}'")
-    where = " AND ".join(where_clauses)
-    return query(f"""
-        MATCH (sender:Account)-[:SENT]->(t:Transaction)-[:RECEIVED]->(receiver:Account)
-        WHERE {where}
-        RETURN sender.sheba AS sender, receiver.sheba AS receiver,
-               t.amount AS amount, t.date AS date, t.description AS description,
-               t.channel AS channel, t.transaction_id AS txid
-        ORDER BY t.date
-    """)
+def get_truth(scenario):
+    """Planted-fraud labels {txid: role}. Kept outside Neo4j; used only to highlight."""
+    path = os.path.join(BASE, '..', scenario, 'ground_truth.csv')
+    with open(path, encoding='utf-8-sig') as f:
+        return {row['transaction_id']: row['role'] for row in csv.DictReader(f)}
+
+def labelled(all_tx, truth, *roles):
+    return [tx for tx in all_tx if truth.get(tx['txid']) in roles or (not roles and tx['txid'] in truth)]
 
 
 def build_graph(transactions, fraud_txids=None):
@@ -248,8 +244,8 @@ def build_graph(transactions, fraud_txids=None):
     G = nx.DiGraph()
     for tx in transactions:
         s, r = tx['sender'], tx['receiver']
-        if s == r:
-            continue  # skip self-transactions for graph clarity
+        if not s or not r:
+            continue  # cash deposit / withdrawal has no counterparty node
         G.add_node(s)
         G.add_node(r)
         is_fraud = fraud_txids and tx['txid'] in fraud_txids
@@ -414,15 +410,9 @@ def gen_scenario_01():
     folder = 'scenario_01'
     all_tx = get_scenario_transactions('scenario_01')
 
-    # Fraud: the layering chain (high-value transfers > 40M)
-    fraud_tx = get_fraud_transactions('scenario_01', min_amount=40_000_000)
+    fraud_tx = labelled(all_tx, get_truth('scenario_01'))
     fraud_ids = {tx['txid'] for tx in fraud_tx}
-
-    # Identify the chain accounts
-    chain_accounts = set()
-    for tx in fraud_tx:
-        chain_accounts.add(tx['sender'])
-        chain_accounts.add(tx['receiver'])
+    chain_accounts = {a for tx in fraud_tx for a in (tx['sender'], tx['receiver']) if a}
 
     G = build_graph(all_tx, fraud_ids)
     highlight = {n: '#e74c3c' for n in chain_accounts if n in G.nodes}
@@ -444,17 +434,17 @@ def gen_scenario_01():
 Pattern: A → B → C → D in quick succession
 
 Total Transactions: {len(all_tx)}
-Suspicious (>40M): {len(fraud_tx)}
+Planted fraud transactions: {len(fraud_tx)} (3 rounds: cash in, 3 hops, cash out)
 Chain Accounts: {len(chain_accounts)}
 
 Fraud Chain Flow:
 """ + "\n".join(f"  {tx['date']} | {sheba_short(tx['sender'])} → {sheba_short(tx['receiver'])} | {amount_m(tx['amount'])} | {tx.get('description','')}" for tx in fraud_tx) + """
 
 Key Indicators:
-- Rapid movement through multiple accounts (3 days)
+- Cash placed just below the reporting threshold, then moved within ~4 days
 - Gradual decrease (commission extraction at each layer)
-- All accounts share contact information
-- Unusual pattern for final account (normally low activity)
+- First account recently opened
+- Final account withdraws the funds in cash
 """)
     print("   Done: scenario_01/")
 
@@ -464,15 +454,14 @@ def gen_scenario_02():
     folder = 'scenario_02'
     all_tx = get_scenario_transactions('scenario_02')
 
-    # Fraud: 45M deposits to aggregator + 650M consolidation
-    fraud_tx = get_fraud_transactions('scenario_02', min_amount=40_000_000)
+    truth = get_truth('scenario_02')
+    fraud_tx = labelled(all_tx, truth)
     fraud_ids = {tx['txid'] for tx in fraud_tx}
 
     G = build_graph(all_tx, fraud_ids)
 
-    # Find the aggregator (most incoming connections)
-    in_deg = dict(G.in_degree())
-    aggregator = max(in_deg, key=in_deg.get) if in_deg else None
+    consolidation = labelled(all_tx, truth, 'consolidation')
+    aggregator = consolidation[0]['sender'] if consolidation else None
     highlight = {}
     if aggregator:
         highlight[aggregator] = '#e74c3c'
@@ -485,7 +474,7 @@ def gen_scenario_02():
     amounts = [tx['amount']/1_000_000 for tx in all_tx]
     ax.hist(amounts, bins=30, color='#3498db', alpha=0.7, edgecolor='black')
     ax.axvline(x=50, color='red', linestyle='--', linewidth=2, label='Reporting Threshold (50M)')
-    ax.axvline(x=45, color='orange', linestyle='--', linewidth=2, label='Structuring Amount (45M)')
+    ax.axvspan(43, 49.5, color='orange', alpha=0.2, label='Structuring band (43-49.5M)')
     ax.set_xlabel('Amount (Million IRR)')
     ax.set_ylabel('Frequency')
     ax.set_title('Scenario 02: Transaction Amount Distribution', fontweight='bold')
@@ -502,20 +491,20 @@ def gen_scenario_02():
 Pattern: Multiple small deposits below 50M reporting threshold
 
 Total Transactions: {len(all_tx)}
-Suspicious (>40M): {len(fraud_tx)}
+Planted fraud transactions: {len(fraud_tx)}
 Aggregator Account: {sheba_short(aggregator) if aggregator else 'N/A'}
 
-Structuring Deposits (45M each):
-""" + "\n".join(f"  {tx['date']} | {sheba_short(tx['sender'])} → {sheba_short(tx['receiver'])} | {amount_m(tx['amount'])}" for tx in fraud_tx if tx['amount'] < 100_000_000) + """
+Structuring (cash deposit -> same-day transfer to aggregator):
+""" + "\n".join(f"  {tx['date']} | {sheba_short(tx['sender'])} → {sheba_short(tx['receiver'])} | {amount_m(tx['amount'])}" for tx in fraud_tx if truth[tx['txid']] != 'consolidation') + """
 
 Consolidation Transfer:
-""" + "\n".join(f"  {tx['date']} | {sheba_short(tx['sender'])} → {sheba_short(tx['receiver'])} | {amount_m(tx['amount'])}" for tx in fraud_tx if tx['amount'] >= 100_000_000) + """
+""" + "\n".join(f"  {tx['date']} | {sheba_short(tx['sender'])} → {sheba_short(tx['receiver'])} | {amount_m(tx['amount'])}" for tx in consolidation) + """
 
 Key Indicators:
-- 15 transactions of exactly 45M (below 50M threshold)
-- Multiple accounts linked by IP/device
-- Temporal clustering
-- Final consolidation to single 650M outbound
+- 15 cash deposits of 43-49.5M, all below the 50M threshold
+- Each deposit forwarded the same day to one aggregator
+- Temporal clustering (8 days)
+- Final consolidation to a single outbound transfer
 """)
     print("   Done: scenario_02/")
 
@@ -525,8 +514,7 @@ def gen_scenario_03():
     folder = 'scenario_03'
     all_tx = get_scenario_transactions('scenario_03')
 
-    # Fraud: the invoice transactions (high value with INV in description)
-    fraud_tx = [tx for tx in all_tx if tx['amount'] > 100_000_000]
+    fraud_tx = labelled(all_tx, get_truth('scenario_03'))
     fraud_ids = {tx['txid'] for tx in fraud_tx}
 
     G = build_graph(all_tx, fraud_ids)
@@ -546,9 +534,7 @@ def gen_scenario_03():
         amounts = [tx['amount']/1_000_000 for tx in fraud_tx]
         labels = [f"{tx.get('description','')[:25]}\n{sheba_short(tx['sender'])}→{sheba_short(tx['receiver'])}" for tx in fraud_tx]
         fig, ax = plt.subplots(figsize=(14, 6))
-        colors = ['#9b59b6' if '001' in str(tx.get('description','')) or '004' in str(tx.get('description',''))
-                  else '#e67e22' if '002' in str(tx.get('description','')) or '005' in str(tx.get('description',''))
-                  else '#1abc9c' for tx in fraud_tx]
+        colors = [('#9b59b6', '#e67e22', '#1abc9c')[i % 3] for i in range(len(fraud_tx))]  # A→B, B→C, C→A
         bars = ax.bar(range(len(amounts)), amounts, color=colors, alpha=0.8, edgecolor='black')
         ax.set_xticks(range(len(labels)))
         ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=7)
@@ -567,7 +553,7 @@ def gen_scenario_03():
 Pattern: Circular business transactions A→B→C→A
 
 Total Transactions: {len(all_tx)}
-High-value invoices: {len(fraud_tx)}
+Planted round-trip invoices: {len(fraud_tx)}
 Shell Company Accounts: {len(shell_accounts)}
 
 Invoice Flow:
@@ -576,7 +562,7 @@ Invoice Flow:
 Key Indicators:
 - Circular flow of funds (A→B→C→A)
 - Vague invoice descriptions (consulting, management fees)
-- Companies at residential addresses
+- Same three companies, repeated every ~10 days
 - Round-tripping with value extraction
 """)
     print("   Done: scenario_03/")
@@ -587,25 +573,22 @@ def gen_scenario_04():
     folder = 'scenario_04'
     all_tx = get_scenario_transactions('scenario_04')
 
-    # Charity donations
-    donations = [tx for tx in all_tx if tx['amount'] < 10_000_000 and tx['sender'] != tx['receiver']]
-    # Big transfers (aggregation + foreign)
-    big_tx = [tx for tx in all_tx if tx['amount'] >= 50_000_000]
+    truth = get_truth('scenario_04')
+    donations = labelled(all_tx, truth, 'donation')
+    aggregation = labelled(all_tx, truth, 'aggregation')
+    foreign_tx = labelled(all_tx, truth, 'foreign_transfer')
+    big_tx = aggregation + foreign_tx
     fraud_ids = {tx['txid'] for tx in donations + big_tx}
 
     G = build_graph(all_tx, fraud_ids)
 
-    # Find hub (charity account - most incoming)
-    in_deg = dict(G.in_degree())
-    hub = max(in_deg, key=in_deg.get) if in_deg else None
+    hub = aggregation[0]['sender'] if aggregation else None
     highlight = {}
     if hub:
         highlight[hub] = '#e74c3c'
-    # Find the foreign entity (receives big amount from NGO)
-    for tx in big_tx:
-        if tx['amount'] >= 100_000_000:
-            highlight[tx['receiver']] = '#8e44ad'
-            highlight[tx['sender']] = '#f39c12'
+    for tx in foreign_tx:
+        highlight[tx['sender']] = '#f39c12'   # NGO
+        highlight[tx['receiver']] = '#8e44ad'  # foreign national
 
     draw_scenario_graph(G, 'Scenario 04: Terrorist Financing (Many→Charity→NGO→Foreign)',
                         f'{folder}/graph_flow.png', highlight_nodes=highlight, layout='kamada')
@@ -625,9 +608,11 @@ def gen_scenario_04():
     # Aggregation funnel
     fig, ax = plt.subplots(figsize=(10, 6))
     total_donations = sum(tx['amount'] for tx in donations)
-    stages = ['50 Donors\n(small amounts)', 'Charity\nAggregation', 'NGO\nTransfer', 'Foreign\nEntity']
-    values = [total_donations/1e6, 200, 180, 180]
-    colors_f = ['#3498db', '#f39c12', '#e67e22', '#e74c3c']
+    n_donors = len({tx['sender'] for tx in donations})
+    stages = [f'{n_donors} Donors\n(small amounts)', 'Charity -> NGO', 'NGO -> Foreign\nNational']
+    values = [total_donations/1e6, sum(tx['amount'] for tx in aggregation)/1e6,
+              sum(tx['amount'] for tx in foreign_tx)/1e6]
+    colors_f = ['#3498db', '#f39c12', '#e74c3c']
     bars = ax.barh(stages, values, color=colors_f, alpha=0.8, edgecolor='black', height=0.6)
     ax.set_xlabel('Amount (Million IRR)')
     ax.set_title('Scenario 04: Fund Aggregation Funnel', fontweight='bold')
@@ -644,20 +629,19 @@ def gen_scenario_04():
 Pattern: Small donations aggregating through intermediaries
 
 Total Transactions: {len(all_tx)}
-Donations (<10M): {len(donations)}
-Large Transfers (>50M): {len(big_tx)}
+Donations: {len(donations)} from {n_donors} donors
 Hub (Charity): {sheba_short(hub) if hub else 'N/A'}
 
 Aggregation Flow:
-  - {len(donations)} donors contributing 1-5M each
+  - Donations of 1-5M each
   - Total collected: {amount_m(total_donations)}
-  - Charity → NGO: 200M
-  - NGO → Foreign entity: 180M
+""" + "\n".join(f"  - {tx['date']} Charity → NGO: {amount_m(tx['amount'])}" for tx in aggregation) + "\n" + \
+"\n".join(f"  - {tx['date']} NGO → Foreign national: {amount_m(tx['amount'])}" for tx in foreign_tx) + """
 
 Key Indicators:
 - Many-to-one aggregation pattern
 - Rapid pass-through (charity doesn't hold funds)
-- Ultimate beneficiary in high-risk jurisdiction
+- Ultimate beneficiary is a foreign-national account
 - Some donors are foreign nationals
 """)
     print("   Done: scenario_04/")
@@ -668,12 +652,8 @@ def gen_scenario_05():
     folder = 'scenario_05'
     all_tx = get_scenario_transactions('scenario_05')
 
-    # Find the victim account (receives pension deposits of 25M)
-    pension_tx = [tx for tx in all_tx if tx['amount'] == 25_000_000]
-    victim = pension_tx[0]['sender'] if pension_tx else None
-
-    # Fraud: large outgoing from victim
-    fraud_tx = [tx for tx in all_tx if tx['amount'] >= 100_000_000]
+    fraud_tx = labelled(all_tx, get_truth('scenario_05'))
+    victim = fraud_tx[0]['sender'] if fraud_tx else None
     fraud_ids = {tx['txid'] for tx in fraud_tx}
 
     G = build_graph(all_tx, fraud_ids)
@@ -692,7 +672,7 @@ def gen_scenario_05():
         fig, ax = plt.subplots(figsize=(14, 6))
         dates_str = [str(tx['date']) for tx in victim_tx]
         amounts = [tx['amount']/1_000_000 for tx in victim_tx]
-        is_out = [tx['sender'] == victim and tx['sender'] != tx['receiver'] for tx in victim_tx]
+        is_out = [tx['sender'] == victim for tx in victim_tx]
 
         colors = ['#e74c3c' if out and amt > 50 else '#2ecc71' if not out else '#3498db'
                   for out, amt in zip(is_out, amounts)]
@@ -717,19 +697,19 @@ Pattern: Legitimate account compromised, behavior changes
 
 Total Transactions: {len(all_tx)}
 Victim Account: {sheba_short(victim) if victim else 'N/A'}
-Large Unauthorized Transfers: {len(fraud_tx)}
+Unauthorized Transfers: {len(fraud_tx)}
 
 Normal Pattern (before takeover):
-  - Regular pension deposits: 25M IRR monthly
-  - Small withdrawals: 2-5M for expenses
+  - Regular pension credits: 25M IRR monthly, early morning
+  - Small purchases 1.5-6M and ATM withdrawals
 
 Takeover Events:
 """ + "\n".join(f"  {tx['date']} | {sheba_short(tx['sender'])} → {sheba_short(tx['receiver'])} | {amount_m(tx['amount'])} | {tx.get('description','')}" for tx in fraud_tx) + """
 
 Key Indicators:
-- Sudden change in transaction behavior
-- Large transfers to new beneficiaries
-- Account closure after funds transferred
+- Sudden change in transaction behavior (amount 20x baseline)
+- Transfers at 00:00-05:00 via mobile banking
+- New beneficiaries, first one a recently opened account
 """)
     print("   Done: scenario_05/")
 
@@ -739,8 +719,8 @@ def gen_scenario_06():
     folder = 'scenario_06'
     all_tx = get_scenario_transactions('scenario_06')
 
-    # Trade invoices (very high value)
-    trade_tx = [tx for tx in all_tx if tx['amount'] >= 500_000_000]
+    truth = get_truth('scenario_06')
+    trade_tx = labelled(all_tx, truth)
     fraud_ids = {tx['txid'] for tx in trade_tx}
 
     G = build_graph(all_tx, fraud_ids)
@@ -754,40 +734,12 @@ def gen_scenario_06():
     draw_scenario_graph(G, 'Scenario 06: Trade-Based Money Laundering',
                         f'{folder}/graph_flow.png', highlight_nodes=highlight)
 
-    # Invoice vs actual value comparison
-    fig, ax = plt.subplots(figsize=(12, 6))
-    invoice_nums = []
-    invoiced = []
-    actual = []
-    for tx in trade_tx:
-        desc = tx.get('description', '')
-        if 'فاکتور' in desc and 'واردات' in desc:
-            invoice_nums.append(desc.split('#')[-1].split(' ')[0] if '#' in desc else '?')
-            invoiced.append(tx['amount']/1e6)
-            actual.append(200)  # actual value ~200M per scenario description
-
-    if invoice_nums:
-        x = np.arange(len(invoice_nums))
-        w = 0.35
-        ax.bar(x - w/2, invoiced, w, label='Invoiced Amount', color='#e74c3c', alpha=0.8)
-        ax.bar(x + w/2, actual, w, label='Estimated Actual Value', color='#2ecc71', alpha=0.8)
-        ax.set_xticks(x)
-        ax.set_xticklabels([f'Invoice #{n}' for n in invoice_nums])
-        ax.set_ylabel('Amount (Million IRR)')
-        ax.set_title('Scenario 06: Over-Invoicing Comparison', fontweight='bold')
-        ax.legend()
-        plt.tight_layout()
-        fig.savefig(os.path.join(BASE, f'{folder}/invoice_comparison.png'), dpi=150)
-        plt.close()
-    else:
-        plt.close()
-
     # Flow with commission
     if trade_tx:
         fig, ax = plt.subplots(figsize=(12, 6))
         amounts = [tx['amount']/1e6 for tx in trade_tx]
         labels = [f"{tx.get('description','')[:30]}\n{tx['date']}" for tx in trade_tx]
-        colors = ['#e74c3c' if 'واردات' in tx.get('description','') else '#f39c12' for tx in trade_tx]
+        colors = ['#e74c3c' if truth[tx['txid']] == 'inflated_invoice' else '#f39c12' for tx in trade_tx]
         bars = ax.bar(range(len(amounts)), amounts, color=colors, alpha=0.8, edgecolor='black')
         ax.set_xticks(range(len(labels)))
         ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=7)
@@ -807,16 +759,16 @@ def gen_scenario_06():
 Pattern: Over/under-invoicing in international trade
 
 Total Transactions: {len(all_tx)}
-Trade Invoices (>500M): {len(trade_tx)}
+Planted trade payments: {len(trade_tx)}
 
 Invoice Details:
 """ + "\n".join(f"  {tx['date']} | {sheba_short(tx['sender'])} → {sheba_short(tx['receiver'])} | {amount_m(tx['amount'])} | {tx.get('description','')}" for tx in trade_tx) + """
 
 Key Indicators:
-- Trade invoices significantly inflated (1B vs 200M actual)
-- Routing through free zone intermediaries
-- 15% commission extracted at each cycle
-- Multiple similar high-value transactions
+- Import payments of ~0.9-1.2B every ~20 days (inflation itself needs customs data)
+- Broker forwards ~85% to a foreign national within 1-3 days
+- ~15% retained by the broker each cycle
+- Same counterparties, consecutive proforma numbers
 """)
     print("   Done: scenario_06/")
 
@@ -826,10 +778,10 @@ def gen_scenario_07():
     folder = 'scenario_07'
     all_tx = get_scenario_transactions('scenario_07')
 
-    # Contact changes (0 amount) + large branch withdrawals
-    contact_changes = [tx for tx in all_tx if tx['amount'] == 0]
-    large_branch = [tx for tx in all_tx if tx['amount'] > 50_000_000]
-    fraud_tx = contact_changes + large_branch
+    truth = get_truth('scenario_07')
+    large_branch = labelled(all_tx, truth, 'unauthorized_transfer')
+    cash_outs = labelled(all_tx, truth, 'cash_out')
+    fraud_tx = large_branch + cash_outs
     fraud_ids = {tx['txid'] for tx in fraud_tx}
 
     G = build_graph(all_tx, fraud_ids)
@@ -849,6 +801,8 @@ def gen_scenario_07():
         if b in G.nodes:
             highlight[b] = '#8e44ad'  # beneficiaries in purple
 
+    branches = query("MATCH (a:Account) WHERE a.sheba IN $s RETURN DISTINCT a.bank_name AS bank, a.branch_code AS branch",
+                     {'s': list(victims)})
     draw_scenario_graph(G, 'Scenario 07: Insider Fraud (Employee Abuse)',
                         f'{folder}/graph_flow.png', highlight_nodes=highlight)
 
@@ -875,22 +829,21 @@ def gen_scenario_07():
 Pattern: Bank employee manipulates vulnerable accounts
 
 Total Transactions: {len(all_tx)}
-Contact Info Changes: {len(contact_changes)}
-Large Unauthorized Transfers (>50M): {len(large_branch)}
+Unauthorized Transfers: {len(large_branch)}
+Mule Cash-outs: {len(cash_outs)}
 Victim Accounts: {len(victims)}
 Beneficiary Accounts: {len(beneficiaries)}
 
-Contact Changes (pre-fraud):
-""" + "\n".join(f"  {tx['date']} | {sheba_short(tx['sender'])} | {tx.get('description','')}" for tx in contact_changes) + """
+Victim home branch(es): """ + ", ".join(f"{b['bank']} / {b['branch']}" for b in branches) + """
 
 Large Transfers:
 """ + "\n".join(f"  {tx['date']} | {sheba_short(tx['sender'])} → {sheba_short(tx['receiver'])} | {amount_m(tx['amount'])} | {tx.get('description','')}" for tx in large_branch) + """
 
 Key Indicators:
-- Dormant accounts reactivated without customer initiation
-- Contact info changed before large transfers
-- All via same branch (5692412)
-- Targets: elderly, deceased, dormant accounts
+- Dormant accounts (no other activity) suddenly send 50-200M
+- All victims belong to the same branch, transfers made at the counter
+- Few shared beneficiaries who cash out within 1-2 days
+- Targets: long-standing accounts opened before 1398
 """)
     print("   Done: scenario_07/")
 
@@ -900,8 +853,8 @@ def gen_scenario_08():
     folder = 'scenario_08'
     all_tx = get_scenario_transactions('scenario_08')
 
-    # The circular chain (high-value transfers with "مرحله" or "مسیر")
-    chain_tx = [tx for tx in all_tx if tx['amount'] >= 100_000_000]
+    truth = get_truth('scenario_08')
+    chain_tx = labelled(all_tx, truth)
     fraud_ids = {tx['txid'] for tx in chain_tx}
 
     G = build_graph(all_tx, fraud_ids)
@@ -917,8 +870,7 @@ def gen_scenario_08():
                         f'{folder}/graph_flow.png', highlight_nodes=highlight, layout='circular')
 
     # Chain flow - amount decay
-    main_chain = sorted([tx for tx in chain_tx if 'مرحله' in str(tx.get('description',''))],
-                        key=lambda x: x['date'])
+    main_chain = labelled(chain_tx, truth, 'ring_hop')
     if main_chain:
         fig, ax = plt.subplots(figsize=(14, 6))
         amounts = [tx['amount']/1e6 for tx in main_chain]
@@ -937,11 +889,11 @@ def gen_scenario_08():
         plt.close()
 
     # Parallel paths
-    parallel_tx = [tx for tx in chain_tx if 'مسیر' in str(tx.get('description',''))]
+    parallel_tx = labelled(chain_tx, truth, 'side_path')
     if parallel_tx:
         fig, ax = plt.subplots(figsize=(10, 5))
         p_amounts = [tx['amount']/1e6 for tx in parallel_tx]
-        p_labels = [f"{tx.get('description','')[:20]}\n{tx['date']}" for tx in parallel_tx]
+        p_labels = [f"{sheba_short(tx['sender'])}→{sheba_short(tx['receiver'])}\n{tx['date']}" for tx in parallel_tx]
         ax.barh(range(len(p_amounts)), p_amounts, color='#9b59b6', alpha=0.8, edgecolor='black')
         ax.set_yticks(range(len(p_labels)))
         ax.set_yticklabels(p_labels, fontsize=8)
@@ -960,7 +912,7 @@ def gen_scenario_08():
 Pattern: Complex network returning to origin via 18 hops
 
 Total Transactions: {len(all_tx)}
-Chain Transactions (>100M): {len(chain_tx)}
+Planted transactions: {len(chain_tx)}
 Main Chain Steps: {len(main_chain)}
 Parallel Paths: {len(parallel_tx)}
 Accounts in Chain: {len(chain_accounts)}
@@ -974,7 +926,7 @@ Parallel Paths:
 Key Indicators:
 - Circular flow where originator is ultimate beneficiary
 - ~5% commission extracted at each hop
-- 45-day total duration
+- Ring duration: """ + f"{main_chain[0]['date']} to {main_chain[-1]['date']}" + """
 - Multiple parallel paths for obfuscation
 """)
     print("   Done: scenario_08/")

@@ -2,42 +2,30 @@
 
 ## Overview
 
-**Pattern:** Money flows through complex network returning to origin
+**Pattern:** 18-account ring returning to the originator, plus 3 side paths
 
-This scenario demonstrates a complex circular payment network designed to obscure the audit trail through multiple hops, delays, and parallel paths.
+**Planted:**
+- `ring_hop`: 18 hops, 1–4 business days apart (~7 weeks), 4–6% retained per hop
+  (1B → ~400M back at the originator)
+- `side_path`: originator → ring member → a member further along the ring (200M each)
 
-**Account Characteristics:**
-- 20 accounts forming circular network
-- 1 originator account (beneficiary of final flow)
-- Mix of individual and corporate accounts
-- Multiple banks involved (5-6 different bank codes)
+**How it is hidden:** neutral descriptions; every ring account also does normal business.
 
-**Fraudulent Transaction Flow:**
-- Account A → Account B → Account C ... → Account S → Account T → Account A
-- Path length: 15-18 hops
-- Delays vary: immediate, 1 day, 3 days, 5 days (randomized)
-- Amount decreases gradually (commissions extracted at each hop): 1B → 950M → 910M ...
-- Some branches split and reconverge (parallel paths)
-- Total duration: 45 days from start to return
-
-**Fraud Indicators:**
-- Circular flow where originator is ultimate beneficiary
-- Complex network to obscure audit trail
-- Commissions extracted at each layer
-- Temporal delays to avoid real-time detection
-- Multiple parallel paths for additional obfuscation
+**Indicators:** long cycle back to origin; monotonic amount decay; side paths that reconverge.
 
 
 ## Transaction Statistics
-- **Total Transactions:** ~150
-- **Fraudulent Transactions:** ~70
-- **Legitimate Transactions:** ~80
+- **Total Transactions:** 224
+- **Planted Fraud Transactions:** 24
+- **Background (legitimate) Transactions:** 200
+- **Period:** 14030101 – 14030224
 
 ## File Structure
 ```
 scenario_08/
-├── transactions.csv    # Transaction data for this scenario
-└── README.md          # This file
+├── transactions.csv    # Bank-side view, no labels
+├── ground_truth.csv    # transaction_id, role of every planted fraud transaction
+└── README.md           # This file
 ```
 
 ## Data Fields
@@ -48,15 +36,15 @@ scenario_08/
 | transaction_id | Unique transaction reference |
 | date | Transaction date (Solar Hijri YYYYMMDD) |
 | time | Transaction time (HHMMSS) |
-| sender_sheba | Originating account Sheba number |
-| receiver_sheba | Receiving account Sheba number |
+| sender_sheba | Originating account Sheba (empty for cash deposits) |
+| receiver_sheba | Receiving account Sheba (empty for cash withdrawals) |
 | amount | Amount in IRR (Iranian Rial) |
-| currency | Currency code (IRR, USD, EUR) |
-| type | Transfer type (برداشت/Withdrawal, واریزت/Transfer, واریت واریزت/Wire) |
+| currency | Currency code (IRR) |
+| type | واریز نقدی (cash in), برداشت نقدی (cash out), انتقال داخلی (same bank), پایا (interbank < 150M), ساتنا (interbank ≥ 150M) |
 | description | Transaction description/narrative |
 | reference | Bank reference number |
-| channel | Transaction channel (شبکه/Online, شعبه/Branch, ATM, موبایل/Mobile) |
-| status | Transaction status (completed, pending, failed, rejected) |
+| channel | اینترنت‌بانک (internet), موبایل‌بانک (mobile), شعبه (branch), ATM |
+| status | Transaction status (completed) |
 
 ## Usage Examples
 
@@ -70,9 +58,9 @@ df = pd.read_csv('transactions.csv', encoding='utf-8-sig')
 # Convert amount to millions
 df['amount_millions'] = df['amount'] / 1_000_000
 
-# Filter fraudulent patterns
-high_value = df[df['amount'] > 100_000_000]
-rapid_transfers = df[df.duplicated(subset=['sender_sheba'], keep=False)]
+# Score a detector against the planted labels
+truth = pd.read_csv('ground_truth.csv', encoding='utf-8-sig')
+df['is_planted'] = df['transaction_id'].isin(truth['transaction_id'])
 ```
 
 ### Analyze Account Relationships
@@ -97,7 +85,7 @@ circular_pairs = df[df.apply(
 2. **Amount Patterns:** Round numbers, threshold avoidance
 3. **Relationship Anomalies:** New beneficiaries, unusual connections
 4. **Temporal Patterns:** Unusual timing, rapid sequences
-5. **Cross-Account Analysis:** Shared identifiers (IP, device, phone)
+5. **Cross-Account Analysis:** Shared branch, shared beneficiaries, account age
 
 ### Red Flags Specific to This Scenario:
 - Review the fraud indicators listed in the overview section

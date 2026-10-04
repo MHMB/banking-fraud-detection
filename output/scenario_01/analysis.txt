@@ -2,19 +2,29 @@ SCENARIO 01: SIMPLE LAYERING
 ============================
 Pattern: A → B → C → D in quick succession
 
-Total Transactions: 70
-Suspicious (>40M): 5
+Total Transactions: 135
+Planted fraud transactions: 15 (3 rounds: cash in, 3 hops, cash out)
 Chain Accounts: 4
 
 Fraud Chain Flow:
-  14030101 | IR..6511 → IR..8460 | 44.5M | انتقال وجه
-  14030101 | IR..6511 → IR..6511 | 45.0M | واریز نقدی
-  14030102 | IR..8460 → IR..5634 | 44.0M | انتقال وجه
-  14030103 | IR..5634 → IR..0466 | 43.5M | انتقال وجه
-  14030104 | IR..0466 → IR..0466 | 40.0M | برداشت وجه
+  14030101 | cash → IR..9930 | 45.0M | None
+  14030101 | IR..9930 → IR..0848 | 44.5M | None
+  14030102 | IR..0848 → IR..2209 | 44.0M | None
+  14030104 | IR..2209 → IR..1686 | 43.5M | None
+  14030105 | IR..1686 → cash | 40.0M | None
+  14030111 | cash → IR..9930 | 48.5M | None
+  14030111 | IR..9930 → IR..0848 | 48.0M | None
+  14030112 | IR..0848 → IR..2209 | 47.5M | None
+  14030113 | IR..2209 → IR..1686 | 47.0M | None
+  14030114 | IR..1686 → cash | 43.5M | None
+  14030120 | cash → IR..9930 | 42.0M | None
+  14030120 | IR..9930 → IR..0848 | 41.5M | None
+  14030121 | IR..0848 → IR..2209 | 41.0M | None
+  14030122 | IR..2209 → IR..1686 | 40.5M | None
+  14030123 | IR..1686 → cash | 37.0M | None
 
 Key Indicators:
-- Rapid movement through multiple accounts (3 days)
+- Cash placed just below the reporting threshold, then moved within ~4 days
 - Gradual decrease (commission extraction at each layer)
-- All accounts share contact information
-- Unusual pattern for final account (normally low activity)
+- First account recently opened
+- Final account withdraws the funds in cash

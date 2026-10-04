@@ -1,51 +1,33 @@
-# Scenario 05: Account Takeover + Fraud
+# Scenario 05: Account Takeover
 
 ## Overview
 
-**Pattern:** Legitimate account compromised, behavior changes
+**Pattern:** stable retiree behaviour for 6 months, then a night-time drain
 
-This scenario demonstrates account takeover where a legitimate customer's account is compromised, leading to unauthorized access and fraudulent transactions that deviate from the established behavior pattern.
+**Baseline (not labelled):** monthly 25M pension from a corporate pension payer (07:00–08:59),
+2–3 small purchases and an ATM withdrawal per month. Victim account opened before 1395.
 
-**Account Characteristics:**
-- Customer X (long-standing account, opened 1390, regular pension deposits)
-- Customer Y (new account, suspicious)
-- Customer Z (offshore connection)
+**Planted:**
+- `takeover_transfer`: 500M to a recently opened account (00:00–04:59, mobile banking)
+- `drain`: 200M, 180M, 150M to another beneficiary over the next 4 days, also at night
 
-**Fraudulent Transaction Flow:**
+**How it is hidden:** the population contains legitimate 150–600M personal transfers (car, housing deposit).
 
-*Before takeover (months 1-6):*
-- Regular pension deposits: 25M IRR monthly
-- Small withdrawals: 2-5M for living expenses
-- Normal activity pattern
-
-*Takeover event:*
-- Change of contact info (email, phone added to account)
-- New authorized signer added (Customer Y)
-- Large transfer to new beneficiary: 500M IRR
-
-*After takeover (months 7-9):*
-- 3 rapid transfers: 200M, 180M, 150M to Customer Z
-- Account status changed to closed after final transfer
-- Customer complaint filed (after account emptied)
-
-**Fraud Indicators:**
-- Sudden change in transaction behavior
-- New relationship (authorized signer) added unexpectedly
-- Large transfers to new beneficiaries (not historical pattern)
-- Account closed immediately after funds transferred
-- Deviation from established baseline
+**Indicators:** amount 20× the account's baseline; night hours; new beneficiaries.
 
 
 ## Transaction Statistics
-- **Total Transactions:** ~60
-- **Fraudulent Transactions:** ~20
-- **Legitimate Transactions:** ~40
+- **Total Transactions:** 181
+- **Planted Fraud Transactions:** 4
+- **Background (legitimate) Transactions:** 177
+- **Period:** 14030101 – 14030631
 
 ## File Structure
 ```
 scenario_05/
-├── transactions.csv    # Transaction data for this scenario
-└── README.md          # This file
+├── transactions.csv    # Bank-side view, no labels
+├── ground_truth.csv    # transaction_id, role of every planted fraud transaction
+└── README.md           # This file
 ```
 
 ## Data Fields
@@ -56,15 +38,15 @@ scenario_05/
 | transaction_id | Unique transaction reference |
 | date | Transaction date (Solar Hijri YYYYMMDD) |
 | time | Transaction time (HHMMSS) |
-| sender_sheba | Originating account Sheba number |
-| receiver_sheba | Receiving account Sheba number |
+| sender_sheba | Originating account Sheba (empty for cash deposits) |
+| receiver_sheba | Receiving account Sheba (empty for cash withdrawals) |
 | amount | Amount in IRR (Iranian Rial) |
-| currency | Currency code (IRR, USD, EUR) |
-| type | Transfer type (برداشت/Withdrawal, واریزت/Transfer, واریت واریزت/Wire) |
+| currency | Currency code (IRR) |
+| type | واریز نقدی (cash in), برداشت نقدی (cash out), انتقال داخلی (same bank), پایا (interbank < 150M), ساتنا (interbank ≥ 150M) |
 | description | Transaction description/narrative |
 | reference | Bank reference number |
-| channel | Transaction channel (شبکه/Online, شعبه/Branch, ATM, موبایل/Mobile) |
-| status | Transaction status (completed, pending, failed, rejected) |
+| channel | اینترنت‌بانک (internet), موبایل‌بانک (mobile), شعبه (branch), ATM |
+| status | Transaction status (completed) |
 
 ## Usage Examples
 
@@ -78,9 +60,9 @@ df = pd.read_csv('transactions.csv', encoding='utf-8-sig')
 # Convert amount to millions
 df['amount_millions'] = df['amount'] / 1_000_000
 
-# Filter fraudulent patterns
-high_value = df[df['amount'] > 100_000_000]
-rapid_transfers = df[df.duplicated(subset=['sender_sheba'], keep=False)]
+# Score a detector against the planted labels
+truth = pd.read_csv('ground_truth.csv', encoding='utf-8-sig')
+df['is_planted'] = df['transaction_id'].isin(truth['transaction_id'])
 ```
 
 ### Analyze Account Relationships
@@ -105,7 +87,7 @@ circular_pairs = df[df.apply(
 2. **Amount Patterns:** Round numbers, threshold avoidance
 3. **Relationship Anomalies:** New beneficiaries, unusual connections
 4. **Temporal Patterns:** Unusual timing, rapid sequences
-5. **Cross-Account Analysis:** Shared identifiers (IP, device, phone)
+5. **Cross-Account Analysis:** Shared branch, shared beneficiaries, account age
 
 ### Red Flags Specific to This Scenario:
 - Review the fraud indicators listed in the overview section

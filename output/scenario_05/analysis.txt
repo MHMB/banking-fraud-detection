@@ -2,21 +2,21 @@ SCENARIO 05: ACCOUNT TAKEOVER
 ==============================
 Pattern: Legitimate account compromised, behavior changes
 
-Total Transactions: 56
-Victim Account: IR..5887
-Large Unauthorized Transfers: 4
+Total Transactions: 181
+Victim Account: IR..2750
+Unauthorized Transfers: 4
 
 Normal Pattern (before takeover):
-  - Regular pension deposits: 25M IRR monthly
-  - Small withdrawals: 2-5M for expenses
+  - Regular pension credits: 25M IRR monthly, early morning
+  - Small purchases 1.5-6M and ATM withdrawals
 
 Takeover Events:
-  140302151 | IR..5887 → IR..6296 | 500.0M | انتقال وجه - تغییر اطلاعات تماس
-  14030216 | IR..5887 → IR..6657 | 200.0M | انتقال وجه
-  14030218 | IR..5887 → IR..6657 | 180.0M | انتقال وجه
-  14030219 | IR..5887 → IR..6657 | 150.0M | انتقال وجه - تسویه حساب
+  14030626 | IR..2750 → IR..9930 | 500.0M | None
+  14030627 | IR..2750 → IR..1413 | 200.0M | None
+  14030629 | IR..2750 → IR..1413 | 180.0M | None
+  14030631 | IR..2750 → IR..1413 | 150.0M | None
 
 Key Indicators:
-- Sudden change in transaction behavior
-- Large transfers to new beneficiaries
-- Account closure after funds transferred
+- Sudden change in transaction behavior (amount 20x baseline)
+- Transfers at 00:00-05:00 via mobile banking
+- New beneficiaries, first one a recently opened account

@@ -2,41 +2,32 @@
 
 ## Overview
 
-**Pattern:** Circular business transactions with no legitimate purpose
+**Pattern:** Company A → B → C → A, 4 cycles over ~6 weeks
 
-This scenario demonstrates the use of shell companies to create circular transactions that appear legitimate but serve no business purpose other than to move funds and extract value.
+**Planted:**
+- `round_trip`: 12 transfers between three corporate accounts (different customers),
+  420–560M at the start of each cycle, ~3–7% retained at each hop,
+  sequential invoice numbers with vague services (consulting / management / trading)
 
-**Account Characteristics:**
-- 3 corporate accounts (registered companies)
-- 2 individual accounts (company directors)
-- All companies registered to same residential address
-- Company types: "consulting services", "trading company", "investment LLC"
+**How it is hidden:**
+- Legitimate B2B invoices with the same description style, heavy-tailed amounts (median ~325M, some > 1B)
+- Natural small cycles exist in the noise (false positives for naive cycle queries)
 
-**Fraudulent Transaction Flow:**
-- Day 1: Company A → Company B: 500M IRR (invoice #INV-001)
-- Day 3: Company B → Company C: 450M IRR (invoice #INV-002)
-- Day 5: Company C → Company A: 480M IRR (invoice #INV-003)
-- Repeat cycle 2-3 times with slight variations
-- All invoices for vague services ("consulting", "management fees")
-
-**Fraud Indicators:**
-- Circular flow of funds (A→B→C→A)
-- No legitimate business purpose (vague invoices)
-- Companies at residential addresses
-- No real business operations (no employees, no actual trade)
-- Round-tripping with value extraction
+**Indicators:** repeated closed 3-cycle among the same companies; decreasing amounts; vague invoices.
 
 
 ## Transaction Statistics
-- **Total Transactions:** ~70
-- **Fraudulent Transactions:** ~25
-- **Legitimate Transactions:** ~45
+- **Total Transactions:** 132
+- **Planted Fraud Transactions:** 12
+- **Background (legitimate) Transactions:** 120
+- **Period:** 14030101 – 14030215
 
 ## File Structure
 ```
 scenario_03/
-├── transactions.csv    # Transaction data for this scenario
-└── README.md          # This file
+├── transactions.csv    # Bank-side view, no labels
+├── ground_truth.csv    # transaction_id, role of every planted fraud transaction
+└── README.md           # This file
 ```
 
 ## Data Fields
@@ -47,15 +38,15 @@ scenario_03/
 | transaction_id | Unique transaction reference |
 | date | Transaction date (Solar Hijri YYYYMMDD) |
 | time | Transaction time (HHMMSS) |
-| sender_sheba | Originating account Sheba number |
-| receiver_sheba | Receiving account Sheba number |
+| sender_sheba | Originating account Sheba (empty for cash deposits) |
+| receiver_sheba | Receiving account Sheba (empty for cash withdrawals) |
 | amount | Amount in IRR (Iranian Rial) |
-| currency | Currency code (IRR, USD, EUR) |
-| type | Transfer type (برداشت/Withdrawal, واریزت/Transfer, واریت واریزت/Wire) |
+| currency | Currency code (IRR) |
+| type | واریز نقدی (cash in), برداشت نقدی (cash out), انتقال داخلی (same bank), پایا (interbank < 150M), ساتنا (interbank ≥ 150M) |
 | description | Transaction description/narrative |
 | reference | Bank reference number |
-| channel | Transaction channel (شبکه/Online, شعبه/Branch, ATM, موبایل/Mobile) |
-| status | Transaction status (completed, pending, failed, rejected) |
+| channel | اینترنت‌بانک (internet), موبایل‌بانک (mobile), شعبه (branch), ATM |
+| status | Transaction status (completed) |
 
 ## Usage Examples
 
@@ -69,9 +60,9 @@ df = pd.read_csv('transactions.csv', encoding='utf-8-sig')
 # Convert amount to millions
 df['amount_millions'] = df['amount'] / 1_000_000
 
-# Filter fraudulent patterns
-high_value = df[df['amount'] > 100_000_000]
-rapid_transfers = df[df.duplicated(subset=['sender_sheba'], keep=False)]
+# Score a detector against the planted labels
+truth = pd.read_csv('ground_truth.csv', encoding='utf-8-sig')
+df['is_planted'] = df['transaction_id'].isin(truth['transaction_id'])
 ```
 
 ### Analyze Account Relationships
@@ -96,7 +87,7 @@ circular_pairs = df[df.apply(
 2. **Amount Patterns:** Round numbers, threshold avoidance
 3. **Relationship Anomalies:** New beneficiaries, unusual connections
 4. **Temporal Patterns:** Unusual timing, rapid sequences
-5. **Cross-Account Analysis:** Shared identifiers (IP, device, phone)
+5. **Cross-Account Analysis:** Shared branch, shared beneficiaries, account age
 
 ### Red Flags Specific to This Scenario:
 - Review the fraud indicators listed in the overview section

@@ -2,42 +2,34 @@
 
 ## Overview
 
-**Pattern:** Small donations aggregating through intermediaries
+**Pattern:** many donors → charity → NGO → foreign-national account
 
-This scenario demonstrates terrorist financing where small donations from many individuals are aggregated through charitable organizations and then transferred to high-risk jurisdictions.
+**Planted:**
+- `donation`: 50 non-corporate donors (incl. foreign nationals), 1–3 donations each of 1–5M over 60 days
+- `aggregation`: charity forwards ~95% of each month's collection to the NGO (2 tranches)
+- `foreign_transfer`: NGO forwards ~90% to a foreign national 2 days later
 
-**Account Characteristics:**
-- 40-50 individual donor accounts (small amounts)
-- 1 charity organization account
-- 1 NGO account
-- 1 foreign entity account (high-risk jurisdiction)
-- 5-10 accounts with foreign national IDs
+Charity/NGO are corporate accounts, preferring names starting with موسسه / سازمان.
 
-**Fraudulent Transaction Flow:**
-- 50 donors: 1-5M IRR each to charity (mixed dates over 2 months)
-- Charity consolidates and transfers 200M to NGO (single transaction)
-- NGO → Foreign entity: 180M IRR (converted to foreign currency equivalent)
-- Some donors use crypto exchanges (if modeled)
-- Cash deposits at multiple branches
+**How it is hidden:**
+- Legitimate merchants also receive many small payments (fan-in hubs)
+- Donation descriptions are ordinary (کمک خیریه / نذر / empty)
 
-**Fraud Indicators:**
-- Aggregation pattern (many small → one large)
-- Rapid pass-through (charity doesn't hold funds, transfers immediately)
-- Ultimate beneficiary in high-risk jurisdiction
-- Charity with no transparent operations
-- Some donors are foreign nationals
+**Indicators:** fan-in then rapid pass-through; charity does not hold funds; foreign end beneficiary.
 
 
 ## Transaction Statistics
-- **Total Transactions:** ~150
-- **Fraudulent Transactions:** ~80
-- **Legitimate Transactions:** ~70
+- **Total Transactions:** 354
+- **Planted Fraud Transactions:** 104
+- **Background (legitimate) Transactions:** 250
+- **Period:** 14030101 – 14030306
 
 ## File Structure
 ```
 scenario_04/
-├── transactions.csv    # Transaction data for this scenario
-└── README.md          # This file
+├── transactions.csv    # Bank-side view, no labels
+├── ground_truth.csv    # transaction_id, role of every planted fraud transaction
+└── README.md           # This file
 ```
 
 ## Data Fields
@@ -48,15 +40,15 @@ scenario_04/
 | transaction_id | Unique transaction reference |
 | date | Transaction date (Solar Hijri YYYYMMDD) |
 | time | Transaction time (HHMMSS) |
-| sender_sheba | Originating account Sheba number |
-| receiver_sheba | Receiving account Sheba number |
+| sender_sheba | Originating account Sheba (empty for cash deposits) |
+| receiver_sheba | Receiving account Sheba (empty for cash withdrawals) |
 | amount | Amount in IRR (Iranian Rial) |
-| currency | Currency code (IRR, USD, EUR) |
-| type | Transfer type (برداشت/Withdrawal, واریزت/Transfer, واریت واریزت/Wire) |
+| currency | Currency code (IRR) |
+| type | واریز نقدی (cash in), برداشت نقدی (cash out), انتقال داخلی (same bank), پایا (interbank < 150M), ساتنا (interbank ≥ 150M) |
 | description | Transaction description/narrative |
 | reference | Bank reference number |
-| channel | Transaction channel (شبکه/Online, شعبه/Branch, ATM, موبایل/Mobile) |
-| status | Transaction status (completed, pending, failed, rejected) |
+| channel | اینترنت‌بانک (internet), موبایل‌بانک (mobile), شعبه (branch), ATM |
+| status | Transaction status (completed) |
 
 ## Usage Examples
 
@@ -70,9 +62,9 @@ df = pd.read_csv('transactions.csv', encoding='utf-8-sig')
 # Convert amount to millions
 df['amount_millions'] = df['amount'] / 1_000_000
 
-# Filter fraudulent patterns
-high_value = df[df['amount'] > 100_000_000]
-rapid_transfers = df[df.duplicated(subset=['sender_sheba'], keep=False)]
+# Score a detector against the planted labels
+truth = pd.read_csv('ground_truth.csv', encoding='utf-8-sig')
+df['is_planted'] = df['transaction_id'].isin(truth['transaction_id'])
 ```
 
 ### Analyze Account Relationships
@@ -97,7 +89,7 @@ circular_pairs = df[df.apply(
 2. **Amount Patterns:** Round numbers, threshold avoidance
 3. **Relationship Anomalies:** New beneficiaries, unusual connections
 4. **Temporal Patterns:** Unusual timing, rapid sequences
-5. **Cross-Account Analysis:** Shared identifiers (IP, device, phone)
+5. **Cross-Account Analysis:** Shared branch, shared beneficiaries, account age
 
 ### Red Flags Specific to This Scenario:
 - Review the fraud indicators listed in the overview section
