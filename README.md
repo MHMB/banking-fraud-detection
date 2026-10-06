@@ -113,6 +113,18 @@ python create_readmes.py --all
 After regenerating, reset Neo4j so old transactions are not kept:
 `docker compose down -v && bash setup.sh`, then `python output/generate_all.py` for the charts.
 
+### Rebuilding the report
+
+With Neo4j running on the fresh data (needs `matplotlib`, `networkx`, `python-docx`):
+
+```bash
+python report_assets/generate_assets.py   # figures, detection-query results, stats.json
+python build_report.py                    # fraud_detection_report.md + .docx
+```
+
+Then open the `.docx` in Word and export it as PDF. The report text lives in `build_report.py`;
+the detection queries in `report_assets/queries.py`. Do not edit the `.md` by hand.
+
 The generators use only the Python standard library — no dependencies.
 
 ---
@@ -151,7 +163,8 @@ Tests (no Neo4j needed, checked against `ground_truth.csv`): `python -m pytest a
 | `import_data.cypher` | Neo4j import script |
 | `verify_neo4j.py` | Post-import data validation |
 | `output/` | Generated analysis charts and stats per scenario |
-| `report_assets/` | Figures used in the report (graphs, distributions, timelines) |
+| `report_assets/` | Report figures, their generator, the detection queries and `stats.json` |
+| `build_report.py` | Builds the report `.md` and `.docx` from the stats and queries |
 | `neo4j_images/` | Neo4j Browser graph screenshots |
 | `fraud_detection_report.{pdf,docx,md}` | Full technical report (Persian, RTL) |
 | `SUMMARY.md` | Detailed technical specification |
