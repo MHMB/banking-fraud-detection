@@ -362,9 +362,27 @@ def scenario_08(g: Generator):
     g.add_noise(200, 55)
 
 
+def scenario_09(g: Generator):
+    """Scatter-gather: one source splits funds across mules, which all forward to one collector."""
+    source, target = g.pick(2)
+    mules = g.pick(9, INDIVIDUAL)
+    for i in range(7):
+        amount = g.rng.randrange(280, 591) * 100_000  # 28M - 59M, inside ordinary P2P range
+        day = g.add(source, mules[i], amount, 3 + g.rng.randint(0, 2), role="scatter")
+        last = mules[i]
+        if i < 2:  # two branches pass through a second mule
+            last = mules[7 + i]
+            amount = rnd(amount * g.rng.uniform(0.95, 0.99), 100_000)
+            day = g.add(mules[i], last, amount, g.biz(day + g.rng.randint(1, 2)), role="relay")
+        g.add(last, target, rnd(amount * g.rng.uniform(0.95, 0.99), 100_000),
+              g.biz(day + g.rng.randint(1, 4)), role="gather")
+    g.add_noise(150, 30)
+
+
 SCENARIOS = {
     '01': scenario_01, '02': scenario_02, '03': scenario_03, '04': scenario_04,
     '05': scenario_05, '06': scenario_06, '07': scenario_07, '08': scenario_08,
+    '09': scenario_09,
 }
 
 
@@ -390,7 +408,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description='Generate transaction data for fraud detection scenarios')
-    parser.add_argument('--scenario', required=True, help="Scenario number (01-08) or 'all'")
+    parser.add_argument('--scenario', required=True, help="Scenario number (01-09) or 'all'")
     parser.add_argument('--accounts', default='accounts_master.csv', help='Master accounts CSV file')
     parser.add_argument('--output', help='Output directory (default scenario_XX; ignored with all)')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
@@ -400,7 +418,7 @@ def main():
     numbers = list(SCENARIOS) if args.scenario == 'all' else [args.scenario]
     for num in numbers:
         if num not in SCENARIOS:
-            parser.error(f"invalid scenario '{num}', must be 01-08 or all")
+            parser.error(f"invalid scenario '{num}', must be 01-09 or all")
         g = Generator(accounts, num, args.seed)
         SCENARIOS[num](g)
         out = args.output if args.output and args.scenario != 'all' else f"scenario_{num}"

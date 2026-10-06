@@ -83,7 +83,7 @@ header "Copying CSV files into the container..."
 docker cp accounts_master.csv ${CONTAINER}:${IMPORT_DIR}/
 success "Copied accounts_master.csv"
 
-for i in 01 02 03 04 05 06 07 08; do
+for i in 01 02 03 04 05 06 07 08 09; do
   DIR="scenario_${i}"
   if [ -f "${DIR}/transactions.csv" ]; then
     docker exec ${CONTAINER} mkdir -p ${IMPORT_DIR}/${DIR}

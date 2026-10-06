@@ -161,6 +161,22 @@ Victim count depends on how many eligible accounts the branch has (currently 6).
 **Indicators:** long cycle back to origin; monotonic amount decay; side paths that reconverge.
 """,
     },
+    "09": {
+        "title": "Scatter-Gather",
+        "description": """
+**Pattern:** one source → 7 mules → one collector (two branches go through a second mule)
+
+**Planted:**
+- `scatter`: source sends 28–59M to each of 7 individual accounts within 3 days
+- `relay`: two of the mules forward to a second mule 1–2 days later
+- `gather`: every branch forwards 95–99% of what it received to the same collector within 1–4 days
+
+**How it is hidden:** each amount sits inside the ordinary P2P range; neutral descriptions;
+source, mules and collector also do normal business.
+
+**Indicators:** fan-out then fan-in between the same two accounts; near-full pass-through; short holding time.
+""",
+    },
 }
 
 def generate_readme(scenario_num: str, transactions_file: str) -> str:
@@ -288,7 +304,7 @@ def main():
     parser = argparse.ArgumentParser(description='Generate README files for fraud detection scenarios')
     parser.add_argument('--scenarios', type=str, nargs='+', help='Scenario directories (e.g., scenario_01)')
     parser.add_argument('--scenario-numbers', type=str, nargs='+', help='Scenario numbers (e.g., 01 02 03)')
-    parser.add_argument('--all', action='store_true', help='Generate READMEs for all scenarios 01-08')
+    parser.add_argument('--all', action='store_true', help='Generate READMEs for all scenarios 01-09')
 
     args = parser.parse_args()
 
@@ -296,7 +312,7 @@ def main():
 
     if args.all:
         # Generate for all scenarios 01-08
-        for i in range(1, 9):
+        for i in range(1, 10):
             num_str = str(i).zfill(2)
             scenario_dirs.append((f"scenario_{num_str}", num_str))
 
