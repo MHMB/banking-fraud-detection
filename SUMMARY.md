@@ -44,8 +44,9 @@ All data files and scripts have been successfully generated for the Iranian bank
 | scenario_06 | 160 | 10 | Trade-Based Money Laundering |
 | scenario_07 | 132 | 12 | Insider Fraud |
 | scenario_08 | 224 | 24 | Circular Payments |
+| scenario_09 | 166 | 16 | Scatter-Gather |
 
-**Total:** 1,499 transactions, 212 planted. Each scenario directory also holds
+**Total:** 1,665 transactions, 228 planted. Each scenario directory also holds
 `ground_truth.csv` (`transaction_id, role`) listing every planted transaction.
 
 ## Data Quality Validation
@@ -62,7 +63,7 @@ All data files and scripts have been successfully generated for the Iranian bank
 - Foreign national FIDA codes follow format: FID + 8-10 digits
 
 ### Transaction Validation
-- All 1,499 transactions reference Sheba numbers from the master file
+- All 1,665 transactions reference Sheba numbers from the master file
 - Only open accounts transact
 - Dates are valid Solar Hijri dates (real month lengths, leap years); branch, PAYA and SATNA activity never falls on Friday
 - Cash deposits have an empty sender, cash withdrawals an empty receiver; no self-transfers

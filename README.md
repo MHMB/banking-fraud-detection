@@ -1,6 +1,6 @@
 # Iranian Banking Fraud Detection — Synthetic Data & Neo4j Graph Analysis
 
-Simulation of eight bank-fraud typologies on **fully synthetic** Iranian banking data,
+Simulation of nine bank-fraud typologies on **fully synthetic** Iranian banking data,
 loaded into a Neo4j graph database and analysed with Cypher.
 
 > **All data in this repository is synthetic and programmatically generated.**
@@ -33,12 +33,12 @@ how a graph database detects those patterns.
 ### Scale
 
 - **180** accounts · **150** customers · **10** Iranian banks
-- **1,499** transactions across **8** scenarios, of which **212** are planted fraud
+- **1,665** transactions across **9** scenarios, of which **228** are planted fraud
 - Reproducible: every script takes `--seed` (default `42`)
 
 ---
 
-## The eight fraud scenarios
+## The fraud scenarios
 
 Each scenario plants one typology inside realistic background activity (salaries,
 purchases, rent, cash, B2B invoices, large personal transfers). The fraud is deliberately
@@ -56,6 +56,7 @@ that also do normal business — it has to be found by analysis. Patterns are ba
 | 06 | Trade-Based ML | importer → broker (−15%) → foreign, ×5 | 160 | 10 | 3 months |
 | 07 | Insider Fraud | dormant same-branch accounts → mules → cash | 132 | 12 | 35 days |
 | 08 | Circular Payments | 18-hop ring back to origin + side paths | 224 | 24 | 55 days |
+| 09 | Scatter-Gather | source → 7 mules → one collector | 166 | 16 | 30 days |
 
 Ground truth lives in `scenario_NN/ground_truth.csv` (`transaction_id, role`). It is **not**
 imported into Neo4j, so detection queries cannot cheat; use it only to score results.
@@ -64,7 +65,7 @@ imported into Neo4j, so detection queries cannot cheat; use it only to score res
 
 ## Graph model
 
-**Nodes:** `Bank` (10) · `Customer` (150: `Person` 120 incl. `ForeignNational` 9, `Company` 30) · `Account` (180) · `Transaction` (1,499)
+**Nodes:** `Bank` (10) · `Customer` (150: `Person` 120 incl. `ForeignNational` 9, `Company` 30) · `Account` (180) · `Transaction` (1,665)
 
 **Relationships:**
 
@@ -116,6 +117,27 @@ The generators use only the Python standard library — no dependencies.
 
 ---
 
+## Path-analysis API
+
+`bash setup.sh` also starts the API at <http://localhost:8000> (interactive docs at `/docs`).
+It searches the **whole graph** and every path is **time-ordered**: a hop only counts if the
+money had already arrived. No authentication; bound to localhost.
+
+| Endpoint | Question it answers |
+|---|---|
+| `GET /shebas/{sheba}/scatter-gather` | Did this Sheba take part in a scatter-then-gather pattern — as source, target or intermediary? Returns every branch with its transactions, amounts scattered/gathered, duration. A source can be an account or cash deposits. Tunable: `min_branches` (2), `max_hops` (3), `window_days` (30), `min_ratio` (0.8). |
+| `POST /relationships` `{"shebas": [...]}` | For every pair: is there a money path in either direction through any number of intermediaries? Returns the fewest-hop path with full transaction details, plus shared owners. |
+
+```bash
+curl -X POST localhost:8000/relationships -H 'content-type: application/json' \
+  -d '{"shebas": ["IR340181658039282722992750", "IR160151939828073741672434"]}'
+```
+
+Run without Docker: `pip install -r api/requirements.txt && uvicorn main:app --app-dir api`.
+Tests (no Neo4j needed, checked against `ground_truth.csv`): `python -m pytest api`.
+
+---
+
 ## Repository layout
 
 | Path | Contents |
@@ -124,7 +146,8 @@ The generators use only the Python standard library — no dependencies.
 | `generate_transactions.py` | Per-scenario transaction generator |
 | `create_readmes.py` | Generates per-scenario documentation |
 | `accounts_master.csv` | 180 accounts, 30 Persian columns |
-| `scenario_01..08/` | `transactions.csv` + `ground_truth.csv` + `README.md` per scenario |
+| `api/` | Path-analysis API (FastAPI): scatter-gather and relationship checks |
+| `scenario_01..09/` | `transactions.csv` + `ground_truth.csv` + `README.md` per scenario |
 | `import_data.cypher` | Neo4j import script |
 | `verify_neo4j.py` | Post-import data validation |
 | `output/` | Generated analysis charts and stats per scenario |
@@ -140,7 +163,7 @@ The generators use only the Python standard library — no dependencies.
 
 | Check | Result |
 |---|---|
-| Total accounts / customers / transactions | 180 / 150 / 1,499 |
+| Total accounts / customers / transactions | 180 / 150 / 1,665 |
 | Transactions with neither sender nor receiver | 0 (cash tx have exactly one side) |
 | Duplicate transaction IDs (across all scenarios) | 0 |
 | Negative / zero amounts | 0 / 0 |

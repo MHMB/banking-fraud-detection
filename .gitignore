@@ -25,3 +25,7 @@ fraud_detection_report_rtl_fixed.docx
 # Neo4j runtime data
 neo4j_data/
 neo4j_logs/
+
+# API virtualenv
+api/.venv/
+.pytest_cache/
