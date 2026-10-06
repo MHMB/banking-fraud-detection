@@ -1,0 +1,241 @@
+{
+ "scenarios": {
+  "01": {
+   "title": "Simple Layering",
+   "transactions": 135,
+   "planted": 15,
+   "roles": {
+    "placement": 3,
+    "layering": 9,
+    "integration": 3
+   },
+   "volume": 11816821388,
+   "planted_volume": 653500000,
+   "first_date": "14030101",
+   "last_date": "14030204",
+   "detection": {
+    "returned_tx": 12,
+    "true_positive": 12,
+    "false_positive": 0,
+    "planted": 15,
+    "precision": 1.0,
+    "recall": 0.8,
+    "missed_roles": [
+     "integration"
+    ]
+   }
+  },
+  "02": {
+   "title": "Structuring (Smurfing)",
+   "transactions": 181,
+   "planted": 31,
+   "roles": {
+    "structured_deposit": 15,
+    "funnel_transfer": 15,
+    "consolidation": 1
+   },
+   "volume": 10829088463,
+   "planted_volume": 2080600000,
+   "first_date": "14030101",
+   "last_date": "14030204",
+   "detection": {
+    "returned_tx": 30,
+    "true_positive": 30,
+    "false_positive": 0,
+    "planted": 31,
+    "precision": 1.0,
+    "recall": 0.97,
+    "missed_roles": [
+     "consolidation"
+    ]
+   }
+  },
+  "03": {
+   "title": "Shell Company Network",
+   "transactions": 132,
+   "planted": 12,
+   "roles": {
+    "round_trip": 12
+   },
+   "volume": 14805099112,
+   "planted_volume": 5250000000,
+   "first_date": "14030101",
+   "last_date": "14030215",
+   "detection": {
+    "returned_tx": 12,
+    "true_positive": 12,
+    "false_positive": 0,
+    "planted": 12,
+    "precision": 1.0,
+    "recall": 1.0,
+    "missed_roles": []
+   }
+  },
+  "04": {
+   "title": "Terrorist Financing",
+   "transactions": 354,
+   "planted": 104,
+   "roles": {
+    "donation": 100,
+    "aggregation": 2,
+    "foreign_transfer": 2
+   },
+   "volume": 19243601211,
+   "planted_volume": 732000000,
+   "first_date": "14030101",
+   "last_date": "14030306",
+   "detection": {
+    "returned_tx": 104,
+    "true_positive": 104,
+    "false_positive": 0,
+    "planted": 104,
+    "precision": 1.0,
+    "recall": 1.0,
+    "missed_roles": []
+   }
+  },
+  "05": {
+   "title": "Account Takeover",
+   "transactions": 181,
+   "planted": 4,
+   "roles": {
+    "takeover_transfer": 1,
+    "drain": 3
+   },
+   "volume": 9294542523,
+   "planted_volume": 1030000000,
+   "first_date": "14030101",
+   "last_date": "14030631",
+   "detection": {
+    "returned_tx": 4,
+    "true_positive": 4,
+    "false_positive": 0,
+    "planted": 4,
+    "precision": 1.0,
+    "recall": 1.0,
+    "missed_roles": []
+   }
+  },
+  "06": {
+   "title": "Trade-Based ML",
+   "transactions": 160,
+   "planted": 10,
+   "roles": {
+    "inflated_invoice": 5,
+    "pass_through": 5
+   },
+   "volume": 20502924604,
+   "planted_volume": 9626000000,
+   "first_date": "14030101",
+   "last_date": "14030328",
+   "detection": {
+    "returned_tx": 10,
+    "true_positive": 10,
+    "false_positive": 0,
+    "planted": 10,
+    "precision": 1.0,
+    "recall": 1.0,
+    "missed_roles": []
+   }
+  },
+  "07": {
+   "title": "Insider Fraud",
+   "transactions": 132,
+   "planted": 12,
+   "roles": {
+    "unauthorized_transfer": 6,
+    "cash_out": 6
+   },
+   "volume": 6665843725,
+   "planted_volume": 1044000000,
+   "first_date": "14030101",
+   "last_date": "14030204",
+   "detection": {
+    "returned_tx": 6,
+    "true_positive": 6,
+    "false_positive": 0,
+    "planted": 12,
+    "precision": 1.0,
+    "recall": 0.5,
+    "missed_roles": [
+     "cash_out"
+    ]
+   }
+  },
+  "08": {
+   "title": "Circular Payments",
+   "transactions": 224,
+   "planted": 24,
+   "roles": {
+    "ring_hop": 18,
+    "side_path": 6
+   },
+   "volume": 28623839034,
+   "planted_volume": 12729600000,
+   "first_date": "14030101",
+   "last_date": "14030224",
+   "detection": {
+    "returned_tx": 18,
+    "true_positive": 18,
+    "false_positive": 0,
+    "planted": 24,
+    "precision": 1.0,
+    "recall": 0.75,
+    "missed_roles": [
+     "side_path"
+    ]
+   }
+  },
+  "09": {
+   "title": "Scatter-Gather",
+   "transactions": 166,
+   "planted": 16,
+   "roles": {
+    "scatter": 7,
+    "relay": 2,
+    "gather": 7
+   },
+   "volume": 8143058545,
+   "planted_volume": 690400000,
+   "first_date": "14030101",
+   "last_date": "14030130",
+   "detection": {
+    "returned_tx": 10,
+    "true_positive": 10,
+    "false_positive": 0,
+    "planted": 16,
+    "precision": 1.0,
+    "recall": 0.62,
+    "missed_roles": [
+     "gather",
+     "relay",
+     "scatter"
+    ]
+   }
+  }
+ },
+ "validation": {
+  "Accounts": 180,
+  "Customers": 150,
+  "Transactions": 1665,
+  "Cash (one-sided) tx": 267,
+  "No sender and no receiver": 0,
+  "Unknown Sheba": 0,
+  "Duplicate IDs": 0,
+  "Zero / negative amounts": 0,
+  "Self transfers": 0
+ },
+ "graph": {
+  "Bank": 10,
+  "Customer": 150,
+  "Person": 120,
+  "Account": 180,
+  "Company": 30,
+  "ForeignNational": 9,
+  "Transaction": 1665,
+  "BELONGS_TO_BANK": 180,
+  "OWNS_ACCOUNT": 217,
+  "SENT": 1526,
+  "RECEIVED": 1537
+ }
+}
