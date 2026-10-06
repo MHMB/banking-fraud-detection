@@ -33,11 +33,11 @@ header "Checking requirements..."
 
 command -v docker &>/dev/null || error "Docker is not installed or not in PATH."
 
-# Support both 'docker-compose' (v1) and 'docker compose' (v2)
-if command -v docker-compose &>/dev/null; then
-  COMPOSE="docker-compose"
-else
+# Prefer 'docker compose' (v2); fall back to legacy 'docker-compose' (v1)
+if docker compose version &>/dev/null; then
   COMPOSE="docker compose"
+else
+  COMPOSE="docker-compose"
 fi
 
 success "All requirements met."
