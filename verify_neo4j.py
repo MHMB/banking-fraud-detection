@@ -22,8 +22,11 @@ QUERIES = [
     ("Transactions per scenario",
      "MATCH (tx:Transaction) RETURN tx.scenario AS Scenario, count(tx) AS Count ORDER BY Scenario"),
 
-    ("Orphaned transactions (should be 0)",
-     "MATCH (tx:Transaction) WHERE NOT (tx)<-[:SENT]-() OR NOT (tx)-[:RECEIVED]->() RETURN count(tx) AS orphaned"),
+    ("Orphaned transactions (should be 0; cash tx have one side only)",
+     "MATCH (tx:Transaction) WHERE NOT (tx)<-[:SENT]-() AND NOT (tx)-[:RECEIVED]->() RETURN count(tx) AS orphaned"),
+
+    ("Customers by label (Company / ForeignNational must be > 0)",
+     "MATCH (c:Customer) RETURN labels(c) AS labels, count(c) AS Count ORDER BY Count DESC"),
 
     ("Accounts without bank (should be 0 for master accounts)",
      "MATCH (a:Account) WHERE a.in_master = true AND NOT (a)-[:BELONGS_TO_BANK]->() RETURN count(a) AS no_bank"),
@@ -42,10 +45,11 @@ QUERIES = [
         WHERE tx.scenario = 'scenario_02' AND tx.amount >= 40000000 AND tx.amount <= 50000000
         RETURN count(tx) AS near_threshold_count, avg(tx.amount) AS avg_amount"""),
 
-    ("Scenario 03 - Circular flows",
-     """MATCH (a1:Account)-[:SENT]->(tx1:Transaction {scenario:'scenario_03'})-[:RECEIVED]->(a2:Account)
-        -[:SENT]->(tx2:Transaction {scenario:'scenario_03'})-[:RECEIVED]->(a3:Account)
-        WHERE a1.sheba = a3.sheba
+    ("Scenario 03 - 3-account cycles",
+     """MATCH (a1:Account)-[:SENT]->(:Transaction {scenario:'scenario_03'})-[:RECEIVED]->(a2:Account)
+        -[:SENT]->(:Transaction {scenario:'scenario_03'})-[:RECEIVED]->(a3:Account)
+        -[:SENT]->(:Transaction {scenario:'scenario_03'})-[:RECEIVED]->(a1)
+        WHERE a1 <> a2 AND a2 <> a3 AND a1 <> a3
         RETURN a1.sheba AS circular_account, count(*) AS cycles"""),
 
     ("Scenario 04 - Hub detection (aggregators)",

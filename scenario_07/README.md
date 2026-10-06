@@ -2,43 +2,32 @@
 
 ## Overview
 
-**Pattern:** Bank employee manipulates accounts
+**Pattern:** dormant accounts of one branch drained at the counter to a few mules
 
-This scenario demonstrates insider fraud where a bank employee abuses their access to customer accounts to initiate unauthorized transactions, targeting vulnerable customers.
+**Planted:**
+- `unauthorized_transfer`: each victim (individual, opened before 1398, same bank and branch)
+  sends 50–200M at the branch counter, roughly every 3 days
+- `cash_out`: the receiving mule withdraws 85–95% in cash within 1–2 days
 
-**Account Characteristics:**
-- 5 dormant accounts (not used in 2+ years)
-- 3 accounts of elderly customers (limited activity)
-- 2 accounts of deceased customers (status not yet updated)
-- 2 accounts with minimal KYC data
-- All manipulated by same bank employee (branch: 5692412)
+Victim count depends on how many eligible accounts the branch has (currently 6).
 
-**Fraudulent Transaction Flow:**
-- Dormant accounts suddenly receive deposits
-- New "customer" accounts opened with minimal KYC
-- Elderly customer accounts: unusual large transfers out
-- Deceased customer accounts: transfers initiated before death recorded
-- All transfers go to accounts controlled by employee or associates
-- 2 accounts: email/phone changed before large transfers
+**How it is hidden:** victims are otherwise silent, so they never appear in noise; mules have normal activity.
 
-**Fraud Indicators:**
-- Dormant accounts reactivated without customer initiation
-- Accounts of vulnerable customers (elderly, deceased) targeted
-- All manipulated accounts handled by same branch/employee
-- KYC incomplete on newly opened accounts
-- Pattern of transfers to same ultimate beneficiaries
+**Indicators:** dormant accounts suddenly active; all victims share a branch; shared beneficiaries; quick cash-out.
 
 
 ## Transaction Statistics
-- **Total Transactions:** ~50
-- **Fraudulent Transactions:** ~15
-- **Legitimate Transactions:** ~35
+- **Total Transactions:** 132
+- **Planted Fraud Transactions:** 12
+- **Background (legitimate) Transactions:** 120
+- **Period:** 14030101 – 14030204
 
 ## File Structure
 ```
 scenario_07/
-├── transactions.csv    # Transaction data for this scenario
-└── README.md          # This file
+├── transactions.csv    # Bank-side view, no labels
+├── ground_truth.csv    # transaction_id, role of every planted fraud transaction
+└── README.md           # This file
 ```
 
 ## Data Fields
@@ -49,15 +38,15 @@ scenario_07/
 | transaction_id | Unique transaction reference |
 | date | Transaction date (Solar Hijri YYYYMMDD) |
 | time | Transaction time (HHMMSS) |
-| sender_sheba | Originating account Sheba number |
-| receiver_sheba | Receiving account Sheba number |
+| sender_sheba | Originating account Sheba (empty for cash deposits) |
+| receiver_sheba | Receiving account Sheba (empty for cash withdrawals) |
 | amount | Amount in IRR (Iranian Rial) |
-| currency | Currency code (IRR, USD, EUR) |
-| type | Transfer type (برداشت/Withdrawal, واریزت/Transfer, واریت واریزت/Wire) |
+| currency | Currency code (IRR) |
+| type | واریز نقدی (cash in), برداشت نقدی (cash out), انتقال داخلی (same bank), پایا (interbank < 150M), ساتنا (interbank ≥ 150M) |
 | description | Transaction description/narrative |
 | reference | Bank reference number |
-| channel | Transaction channel (شبکه/Online, شعبه/Branch, ATM, موبایل/Mobile) |
-| status | Transaction status (completed, pending, failed, rejected) |
+| channel | اینترنت‌بانک (internet), موبایل‌بانک (mobile), شعبه (branch), ATM |
+| status | Transaction status (completed) |
 
 ## Usage Examples
 
@@ -71,9 +60,9 @@ df = pd.read_csv('transactions.csv', encoding='utf-8-sig')
 # Convert amount to millions
 df['amount_millions'] = df['amount'] / 1_000_000
 
-# Filter fraudulent patterns
-high_value = df[df['amount'] > 100_000_000]
-rapid_transfers = df[df.duplicated(subset=['sender_sheba'], keep=False)]
+# Score a detector against the planted labels
+truth = pd.read_csv('ground_truth.csv', encoding='utf-8-sig')
+df['is_planted'] = df['transaction_id'].isin(truth['transaction_id'])
 ```
 
 ### Analyze Account Relationships
@@ -98,7 +87,7 @@ circular_pairs = df[df.apply(
 2. **Amount Patterns:** Round numbers, threshold avoidance
 3. **Relationship Anomalies:** New beneficiaries, unusual connections
 4. **Temporal Patterns:** Unusual timing, rapid sequences
-5. **Cross-Account Analysis:** Shared identifiers (IP, device, phone)
+5. **Cross-Account Analysis:** Shared branch, shared beneficiaries, account age
 
 ### Red Flags Specific to This Scenario:
 - Review the fraud indicators listed in the overview section

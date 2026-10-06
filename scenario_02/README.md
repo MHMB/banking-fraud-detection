@@ -2,39 +2,32 @@
 
 ## Overview
 
-**Pattern:** Multiple small deposits below reporting threshold
+**Pattern:** 9 smurfs → 15 sub-threshold cash deposits → same-day transfer to one aggregator → one outbound transfer
 
-This scenario demonstrates structuring (also known as smurfing), where large amounts are broken into multiple smaller transactions to avoid currency transaction reporting (CTR) requirements. In Iran, transactions above 50M IRR trigger reporting requirements.
+**Planted:**
+- `structured_deposit`: 15 cash deposits of 43.0–49.5M (threshold 50M) over 8 days
+- `funnel_transfer`: each deposit forwarded the same day to the aggregator
+- `consolidation`: aggregator sends ~96% of the total in one transfer (day 12)
 
-**Account Characteristics:**
-- 1 primary aggregator account
-- 8-10 source accounts (some legitimate customers, some money mules)
-- Mix of individual and joint accounts
+**How it is hidden:**
+- Amounts are not identical; legitimate salaries and cash deposits fall in the same 40–50M band
+- Smurfs also have normal activity
 
-**Fraudulent Transaction Flow:**
-- 15 transactions of 45M IRR each (threshold: 50M)
-- Spread across 10 days
-- Multiple branches (3-4 different branch codes)
-- Some from same IP address (different accounts)
-- Final: aggregator account consolidates to single outbound transfer of 650M
-
-**Fraud Indicators:**
-- Repeated amounts just below threshold
-- Multiple accounts linked by IP/device
-- Temporal clustering (same time window daily)
-- Final consolidation indicates structuring purpose
+**Indicators:** cash-in/transfer-out pairs on the same day; fan-in to one account; consolidation shortly after.
 
 
 ## Transaction Statistics
-- **Total Transactions:** ~120
-- **Fraudulent Transactions:** ~50
-- **Legitimate Transactions:** ~70
+- **Total Transactions:** 181
+- **Planted Fraud Transactions:** 31
+- **Background (legitimate) Transactions:** 150
+- **Period:** 14030101 – 14030204
 
 ## File Structure
 ```
 scenario_02/
-├── transactions.csv    # Transaction data for this scenario
-└── README.md          # This file
+├── transactions.csv    # Bank-side view, no labels
+├── ground_truth.csv    # transaction_id, role of every planted fraud transaction
+└── README.md           # This file
 ```
 
 ## Data Fields
@@ -45,15 +38,15 @@ scenario_02/
 | transaction_id | Unique transaction reference |
 | date | Transaction date (Solar Hijri YYYYMMDD) |
 | time | Transaction time (HHMMSS) |
-| sender_sheba | Originating account Sheba number |
-| receiver_sheba | Receiving account Sheba number |
+| sender_sheba | Originating account Sheba (empty for cash deposits) |
+| receiver_sheba | Receiving account Sheba (empty for cash withdrawals) |
 | amount | Amount in IRR (Iranian Rial) |
-| currency | Currency code (IRR, USD, EUR) |
-| type | Transfer type (برداشت/Withdrawal, واریزت/Transfer, واریت واریزت/Wire) |
+| currency | Currency code (IRR) |
+| type | واریز نقدی (cash in), برداشت نقدی (cash out), انتقال داخلی (same bank), پایا (interbank < 150M), ساتنا (interbank ≥ 150M) |
 | description | Transaction description/narrative |
 | reference | Bank reference number |
-| channel | Transaction channel (شبکه/Online, شعبه/Branch, ATM, موبایل/Mobile) |
-| status | Transaction status (completed, pending, failed, rejected) |
+| channel | اینترنت‌بانک (internet), موبایل‌بانک (mobile), شعبه (branch), ATM |
+| status | Transaction status (completed) |
 
 ## Usage Examples
 
@@ -67,9 +60,9 @@ df = pd.read_csv('transactions.csv', encoding='utf-8-sig')
 # Convert amount to millions
 df['amount_millions'] = df['amount'] / 1_000_000
 
-# Filter fraudulent patterns
-high_value = df[df['amount'] > 100_000_000]
-rapid_transfers = df[df.duplicated(subset=['sender_sheba'], keep=False)]
+# Score a detector against the planted labels
+truth = pd.read_csv('ground_truth.csv', encoding='utf-8-sig')
+df['is_planted'] = df['transaction_id'].isin(truth['transaction_id'])
 ```
 
 ### Analyze Account Relationships
@@ -94,7 +87,7 @@ circular_pairs = df[df.apply(
 2. **Amount Patterns:** Round numbers, threshold avoidance
 3. **Relationship Anomalies:** New beneficiaries, unusual connections
 4. **Temporal Patterns:** Unusual timing, rapid sequences
-5. **Cross-Account Analysis:** Shared identifiers (IP, device, phone)
+5. **Cross-Account Analysis:** Shared branch, shared beneficiaries, account age
 
 ### Red Flags Specific to This Scenario:
 - Review the fraud indicators listed in the overview section

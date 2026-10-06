@@ -2,23 +2,23 @@ SCENARIO 06: TRADE-BASED MONEY LAUNDERING
 ==========================================
 Pattern: Over/under-invoicing in international trade
 
-Total Transactions: 70
-Trade Invoices (>500M): 10
+Total Transactions: 160
+Planted trade payments: 10
 
 Invoice Details:
-  14030101 | IR..5887 → IR..6657 | 1000.0M | واردات الکترونیکی - فاکتور #100
-  14030103 | IR..6657 → IR..6296 | 850.0M | پرداخت فاکتور #100 - کارمزد: 15%
-  14030121 | IR..5887 → IR..6657 | 1000.0M | واردات الکترونیکی - فاکتور #101
-  14030123 | IR..6657 → IR..6296 | 850.0M | پرداخت فاکتور #101 - کارمزد: 15%
-  14030211 | IR..5887 → IR..6657 | 1000.0M | واردات الکترونیکی - فاکتور #102
-  14030213 | IR..6657 → IR..6296 | 850.0M | پرداخت فاکتور #102 - کارمزد: 15%
-  14030231 | IR..5887 → IR..6657 | 1000.0M | واردات الکترونیکی - فاکتور #103
-  14030251 | IR..5887 → IR..6657 | 1000.0M | واردات الکترونیکی - فاکتور #104
-  14030303 | IR..6657 → IR..6296 | 850.0M | پرداخت فاکتور #103 - کارمزد: 15%
-  14030323 | IR..6657 → IR..6296 | 850.0M | پرداخت فاکتور #104 - کارمزد: 15%
+  14030101 | IR..7525 → IR..8058 | 913.0M | واردات کالا - پروفرما 3502
+  14030104 | IR..8058 → IR..4395 | 774.0M | بابت پروفرما 3502
+  14030125 | IR..7525 → IR..8058 | 1067.0M | واردات کالا - پروفرما 3508
+  14030127 | IR..8058 → IR..4395 | 906.0M | بابت پروفرما 3508
+  14030213 | IR..7525 → IR..8058 | 1114.0M | واردات کالا - پروفرما 3512
+  14030215 | IR..8058 → IR..4395 | 953.0M | بابت پروفرما 3512
+  14030231 | IR..7525 → IR..8058 | 1002.0M | واردات کالا - پروفرما 3552
+  14030301 | IR..8058 → IR..4395 | 860.0M | بابت پروفرما 3552
+  14030321 | IR..7525 → IR..8058 | 1103.0M | واردات کالا - پروفرما 3589
+  14030322 | IR..8058 → IR..4395 | 934.0M | بابت پروفرما 3589
 
 Key Indicators:
-- Trade invoices significantly inflated (1B vs 200M actual)
-- Routing through free zone intermediaries
-- 15% commission extracted at each cycle
-- Multiple similar high-value transactions
+- Import payments of ~0.9-1.2B every ~20 days (inflation itself needs customs data)
+- Broker forwards ~85% to a foreign national within 1-3 days
+- ~15% retained by the broker each cycle
+- Same counterparties, consecutive proforma numbers

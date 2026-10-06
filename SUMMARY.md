@@ -13,19 +13,18 @@ All data files and scripts have been successfully generated for the Iranian bank
    - Generates valid Iranian National IDs with check digit validation
    - Supports individual, corporate, and foreign national customers
 
-2. **`generate_transactions.py`** (32KB)
-   - Generates transaction data for 8 fraud scenarios
-   - Each scenario includes both fraudulent and legitimate transactions
-   - FATF-compliant fraud patterns
+2. **`generate_transactions.py`**
+   - Generates transaction data for 8 fraud scenarios (`--scenario all` or `01`–`08`)
+   - Plants each typology inside realistic background activity and writes ground_truth.csv
+   - FATF-based fraud patterns
 
-3. **`create_readmes.py`** (16KB)
-   - Auto-generates documentation for each scenario
-   - Includes fraud indicators and analysis guidance
+3. **`create_readmes.py`**
+   - Auto-generates documentation for each scenario, with counts read from the CSVs
 
 ### Data Files
 
 #### Master Data
-- **`accounts_master.csv`** (67KB, 206 rows including header)
+- **`accounts_master.csv`** (217 rows: one per customer-account relationship)
   - 180 unique banking accounts
   - 150 unique customers
   - 30 columns with Iranian banking data fields
@@ -35,36 +34,38 @@ All data files and scripts have been successfully generated for the Iranian bank
 
 #### Scenario Transaction Files
 
-| Scenario | Transactions | Description |
-|----------|---------------|-------------|
-| scenario_01/transactions.csv | 70 | Simple Layering (Money Laundering) |
-| scenario_02/transactions.csv | 86 | Structuring (Smurfing) |
-| scenario_03/transactions.csv | 51 | Shell Company Network |
-| scenario_04/transactions.csv | 122 | Terrorist Financing |
-| scenario_05/transactions.csv | 56 | Account Takeover + Fraud |
-| scenario_06/transactions.csv | 70 | Trade-Based Money Laundering |
-| scenario_07/transactions.csv | 51 | Insider Fraud |
-| scenario_08/transactions.csv | 104 | Circular Payments |
+| Scenario | Transactions | Planted fraud | Description |
+|----------|--------------|---------------|-------------|
+| scenario_01 | 135 | 15 | Simple Layering (Money Laundering) |
+| scenario_02 | 181 | 31 | Structuring (Smurfing) |
+| scenario_03 | 132 | 12 | Shell Company Network |
+| scenario_04 | 354 | 104 | Terrorist Financing |
+| scenario_05 | 181 | 4 | Account Takeover |
+| scenario_06 | 160 | 10 | Trade-Based Money Laundering |
+| scenario_07 | 132 | 12 | Insider Fraud |
+| scenario_08 | 224 | 24 | Circular Payments |
 
-**Total:** 610 transaction records across all scenarios
+**Total:** 1,499 transactions, 212 planted. Each scenario directory also holds
+`ground_truth.csv` (`transaction_id, role`) listing every planted transaction.
 
 ## Data Quality Validation
 
 ### Sheba Number Validation
 - All 180 Sheba numbers follow valid 26-character format: `IR` + 2 check digits + 22 account digits
 - Check digits calculated using mod-97 algorithm
-- Bank codes match actual Iranian banks (056=Samān, 058=Mellat, etc.)
+- Bank identifiers match real CBI codes (017=Melli, 012=Mellat, 056=Saman, 018=Tejarat, …)
 
 ### National ID Validation
 - All 10-digit Iranian National IDs include valid check digit
-- Check digit algorithm: (sum of digits at odd positions × 10 + sum of digits at even positions) mod 11
+- Individuals: Σ dᵢ·(10−i) mod 11 over the first 9 digits; check = r if r < 2 else 11 − r
+- Legal entities: 11-digit شناسه ملی, check = Σ (dᵢ + d₁₀ + 2)·[29,27,23,19,17]ᵢ mod 11 (10 → 0)
 - Foreign national FIDA codes follow format: FID + 8-10 digits
 
 ### Transaction Validation
-- All 618 transactions reference valid Sheba numbers from master file
-- Zero invalid account references across all scenarios
-- Account statuses consistent (closed accounts don't have post-closure transactions)
-- Dates in valid Solar Hijri format (YYYYMMDD)
+- All 1,499 transactions reference Sheba numbers from the master file
+- Only open accounts transact
+- Dates are valid Solar Hijri dates (real month lengths, leap years); branch, PAYA and SATNA activity never falls on Friday
+- Cash deposits have an empty sender, cash withdrawals an empty receiver; no self-transfers
 
 ## Data Structure
 
@@ -107,70 +108,23 @@ All data files and scripts have been successfully generated for the Iranian bank
 4. sender_sheba - Originating account Sheba number
 5. receiver_sheba - Receiving account Sheba number
 6. amount - Amount in IRR (Iranian Rial)
-7. currency - Currency code (IRR, USD, EUR)
-8. type - Transfer type (برداشت/Withdrawal, واریزت/Transfer, etc.)
+7. currency - Currency code (IRR)
+8. type - واریز نقدی / برداشت نقدی / انتقال داخلی / پایا / ساتنا
 9. description - Transaction description
 10. reference - Bank reference number
-11. channel - Transaction channel (شبکه/Online, شعبه/Branch, ATM, موبایل/Mobile)
-12. status - Transaction status (completed, pending, failed, rejected)
+11. channel - اینترنت‌بانک / موبایل‌بانک / شعبه / ATM
+12. status - Transaction status (completed)
 
 ## Scenario Details
 
-### Scenario 01: Simple Layering
-**Pattern:** A → B → C → D in quick succession
-- Rapid movement through 4 accounts in 3 days
-- Gradual decrease from 45M → 40M (commission extraction)
-- All accounts share contact information
-- 15 fraudulent, ~55 legitimate transactions
+Per-scenario specs (planted roles, how each is hidden, indicators) are in
+`scenario_NN/README.md`, generated by `create_readmes.py`.
 
-### Scenario 02: Structuring (Smurfing)
-**Pattern:** Multiple small deposits below 50M IRR threshold
-- 15 transactions of 45M each (just below reporting threshold)
-- Aggregator consolidates to single 650M outbound transfer
-- Multiple branches and IP links
-- 50 fraudulent, ~35 legitimate transactions
-
-### Scenario 03: Shell Company Network
-**Pattern:** Circular business transactions A→B→C→A
-- 3 corporate accounts with vague invoice descriptions
-- Round-tripping with value extraction
-- Companies registered to residential addresses
-- 25 fraudulent, ~25 legitimate transactions
-
-### Scenario 04: Terrorist Financing
-**Pattern:** Small donations aggregating through intermediaries
-- 50 donors contributing 1-5M each
-- Charity consolidates 200M to NGO
-- NGO transfers 180M to foreign entity
-- 80 fraudulent, ~40 legitimate transactions
-
-### Scenario 05: Account Takeover
-**Pattern:** Legitimate account compromised
-- 6 months normal pension deposits (25M monthly)
-- Sudden 500M transfer to new beneficiary
-- Followed by 3 rapid transfers totaling 530M
-- 20 fraudulent, ~35 legitimate transactions
-
-### Scenario 06: Trade-Based ML
-**Pattern:** Over-invoicing in international trade
-- Import goods invoiced at 1B IRR vs actual 200M
-- Payment routed through free zone intermediary
-- 15% commission extracted at each cycle
-- 30 fraudulent, ~40 legitimate transactions
-
-### Scenario 07: Insider Fraud
-**Pattern:** Bank employee manipulates accounts
-- Targets dormant, elderly, and deceased customer accounts
-- 12 accounts manipulated by same branch employee
-- Large transfers to beneficiary accounts
-- 15 fraudulent, ~35 legitimate transactions
-
-### Scenario 08: Circular Payments
-**Pattern:** Complex network returning to origin
-- 18-hop circular flow: A→B→C...→A
-- 5% commission extracted at each hop
-- Parallel paths for obfuscation
-- 70 fraudulent, ~35 legitimate transactions
+Background noise in every scenario is drawn over the full scenario window:
+purchases at merchants, P2P (round amounts, often blank descriptions), monthly salaries
+(22–49.5M, i.e. just under the 50M threshold), ATM and branch cash, B2B invoices
+(heavy-tailed, median ~325M, some > 1B) and occasional 150–600M personal transfers.
+Fraud actors (except dormant victims in scenario 07) also take part in this activity.
 
 ## Usage
 
@@ -183,9 +137,7 @@ python generate_accounts.py --accounts 200 --customers 160 --output accounts_mas
 python generate_transactions.py --scenario 01 --accounts accounts_master.csv --output scenario_01
 
 # Regenerate all scenarios
-for scenario in {01..08}; do
-    python generate_transactions.py --scenario $scenario --accounts accounts_master.csv --output "scenario_$scenario"
-done
+python generate_transactions.py --scenario all --accounts accounts_master.csv
 ```
 
 ### Analyze Data
@@ -201,9 +153,9 @@ transactions = pd.read_csv('scenario_01/transactions.csv', encoding='utf-8-sig')
 # Join with account details
 merged = transactions.merge(accounts, left_on='sender_sheba', right_on='شماره شبای حساب')
 
-# Analyze patterns
-high_value = transactions[transactions['amount'] > 100_000_000]
-rapid_sequence = transactions.groupby('sender_sheba').filter(lambda x: len(x) > 5)
+# Score a detector against the planted labels
+truth = pd.read_csv('scenario_01/ground_truth.csv', encoding='utf-8-sig')
+transactions['is_planted'] = transactions['transaction_id'].isin(truth['transaction_id'])
 ```
 
 ## References

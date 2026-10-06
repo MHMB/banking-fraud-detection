@@ -2,34 +2,24 @@ SCENARIO 07: INSIDER FRAUD (BANK EMPLOYEE)
 ============================================
 Pattern: Bank employee manipulates vulnerable accounts
 
-Total Transactions: 51
-Contact Info Changes: 4
-Large Unauthorized Transfers (>50M): 12
-Victim Accounts: 12
-Beneficiary Accounts: 5
+Total Transactions: 132
+Unauthorized Transfers: 6
+Mule Cash-outs: 6
+Victim Accounts: 6
+Beneficiary Accounts: 4
 
-Contact Changes (pre-fraud):
-  14030100 | IR..5887 | تغییر اطلاعات تماس - ایمیل و شماره موبایل
-  14030109 | IR..1686 | تغییر اطلاعات تماس - ایمیل و شماره موبایل
-  14030118 | IR..8460 | تغییر اطلاعات تماس - ایمیل و شماره موبایل
-  14030127 | IR..5765 | تغییر اطلاعات تماس - ایمیل و شماره موبایل
+Victim home branch(es): بانک پاسارگاد / 8749
 
 Large Transfers:
-  14030101 | IR..5887 → IR..0466 | 128.7M | برداشت وجه - شعبه 5555555
-  14030104 | IR..6296 → IR..6122 | 111.2M | برداشت وجه - شعبه 5692413
-  14030107 | IR..6657 → IR..9089 | 77.1M | برداشت وجه - شعبه 5555555
-  14030110 | IR..1686 → IR..6122 | 93.7M | برداشت وجه - شعبه 1234571
-  14030113 | IR..6511 → IR..8127 | 193.4M | برداشت وجه - شعبه 1234569
-  14030116 | IR..5779 → IR..0466 | 122.5M | برداشت وجه - شعبه 1111111
-  14030119 | IR..8460 → IR..8127 | 65.0M | برداشت وجه - شعبه 1111111
-  14030122 | IR..5634 → IR..8127 | 134.5M | برداشت وجه - شعبه 5692432
-  14030125 | IR..6289 → IR..8127 | 173.2M | برداشت وجه - شعبه 1234571
-  14030128 | IR..5765 → IR..6122 | 194.7M | برداشت وجه - شعبه 5555555
-  14030201 | IR..0211 → IR..8127 | 108.9M | برداشت وجه - شعبه 2222222
-  14030204 | IR..3103 → IR..5170 | 62.6M | برداشت وجه - شعبه 5692431
+  14030101 | IR..9827 → IR..4247 | 77.0M | None
+  14030105 | IR..2175 → IR..8380 | 137.0M | None
+  14030108 | IR..0541 → IR..3503 | 61.0M | None
+  14030111 | IR..8149 → IR..6122 | 103.0M | None
+  14030113 | IR..0463 → IR..4247 | 63.0M | None
+  14030118 | IR..4101 → IR..3503 | 106.0M | None
 
 Key Indicators:
-- Dormant accounts reactivated without customer initiation
-- Contact info changed before large transfers
-- All via same branch (5692412)
-- Targets: elderly, deceased, dormant accounts
+- Dormant accounts (no other activity) suddenly send 50-200M
+- All victims belong to the same branch, transfers made at the counter
+- Few shared beneficiaries who cash out within 1-2 days
+- Targets: long-standing accounts opened before 1398

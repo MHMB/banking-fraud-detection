@@ -2,43 +2,32 @@
 
 ## Overview
 
-**Pattern:** Over/under-invoicing in international trade
+**Pattern:** importer → free-zone broker → foreign exporter, 5 cycles ~20 days apart
 
-This scenario demonstrates trade-based money laundering where the value transferred between parties is misrepresented through false invoicing, allowing funds to move across borders under the guise of legitimate trade.
+**Planted:**
+- `inflated_invoice`: importer pays 0.9–1.2B per proforma
+- `pass_through`: broker forwards ~85% to a foreign-national account 1–3 days later
 
-**Account Characteristics:**
-- Company A (Iran importer - "Tehran Trading Co")
-- Company B (UAE exporter - "Gulf Trading LLC")
-- Company C (intermediary in free zone)
-- Company D (another shell company)
+Over-invoicing itself is not visible in payment data (would need customs declarations);
+what is visible is the repeated pass-through with a fixed ~15% retention.
 
-**Fraudulent Transaction Flow:**
-- Trade transaction: Import goods from B
-- Invoice shows: 1M USD equivalent
-- Actual value: 200K USD (80% over-invoicing)
-- Payment route: A → C → B (through free zone)
-- C charges 15% commission (150K USD)
-- Multiple similar transactions over 3 months
-- Documents show electronics imports (inflated values)
+**How it is hidden:** legitimate B2B payments of similar size (some > 1B) and proforma-style descriptions.
 
-**Fraud Indicators:**
-- Trade invoices significantly inflated
-- Routing through free zone/intermediaries
-- Value transfer through trade misrepresentation
-- Shell companies in free trade zones involved
-- Multiple high-value similar transactions
+**Indicators:** fixed retention ratio; same three parties; regular cadence; foreign end beneficiary.
 
 
 ## Transaction Statistics
-- **Total Transactions:** ~90
-- **Fraudulent Transactions:** ~30
-- **Legitimate Transactions:** ~60
+- **Total Transactions:** 160
+- **Planted Fraud Transactions:** 10
+- **Background (legitimate) Transactions:** 150
+- **Period:** 14030101 – 14030328
 
 ## File Structure
 ```
 scenario_06/
-├── transactions.csv    # Transaction data for this scenario
-└── README.md          # This file
+├── transactions.csv    # Bank-side view, no labels
+├── ground_truth.csv    # transaction_id, role of every planted fraud transaction
+└── README.md           # This file
 ```
 
 ## Data Fields
@@ -49,15 +38,15 @@ scenario_06/
 | transaction_id | Unique transaction reference |
 | date | Transaction date (Solar Hijri YYYYMMDD) |
 | time | Transaction time (HHMMSS) |
-| sender_sheba | Originating account Sheba number |
-| receiver_sheba | Receiving account Sheba number |
+| sender_sheba | Originating account Sheba (empty for cash deposits) |
+| receiver_sheba | Receiving account Sheba (empty for cash withdrawals) |
 | amount | Amount in IRR (Iranian Rial) |
-| currency | Currency code (IRR, USD, EUR) |
-| type | Transfer type (برداشت/Withdrawal, واریزت/Transfer, واریت واریزت/Wire) |
+| currency | Currency code (IRR) |
+| type | واریز نقدی (cash in), برداشت نقدی (cash out), انتقال داخلی (same bank), پایا (interbank < 150M), ساتنا (interbank ≥ 150M) |
 | description | Transaction description/narrative |
 | reference | Bank reference number |
-| channel | Transaction channel (شبکه/Online, شعبه/Branch, ATM, موبایل/Mobile) |
-| status | Transaction status (completed, pending, failed, rejected) |
+| channel | اینترنت‌بانک (internet), موبایل‌بانک (mobile), شعبه (branch), ATM |
+| status | Transaction status (completed) |
 
 ## Usage Examples
 
@@ -71,9 +60,9 @@ df = pd.read_csv('transactions.csv', encoding='utf-8-sig')
 # Convert amount to millions
 df['amount_millions'] = df['amount'] / 1_000_000
 
-# Filter fraudulent patterns
-high_value = df[df['amount'] > 100_000_000]
-rapid_transfers = df[df.duplicated(subset=['sender_sheba'], keep=False)]
+# Score a detector against the planted labels
+truth = pd.read_csv('ground_truth.csv', encoding='utf-8-sig')
+df['is_planted'] = df['transaction_id'].isin(truth['transaction_id'])
 ```
 
 ### Analyze Account Relationships
@@ -98,7 +87,7 @@ circular_pairs = df[df.apply(
 2. **Amount Patterns:** Round numbers, threshold avoidance
 3. **Relationship Anomalies:** New beneficiaries, unusual connections
 4. **Temporal Patterns:** Unusual timing, rapid sequences
-5. **Cross-Account Analysis:** Shared identifiers (IP, device, phone)
+5. **Cross-Account Analysis:** Shared branch, shared beneficiaries, account age
 
 ### Red Flags Specific to This Scenario:
 - Review the fraud indicators listed in the overview section

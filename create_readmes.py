@@ -4,276 +4,162 @@ Generate README.md files for each fraud detection scenario
 Creates scenario documentation with fraud indicators and statistics
 """
 
+import csv
 import os
-from typing import Dict, List
+
+
+def stats(transactions_file: str) -> str:
+    """Counts straight from the generated files."""
+    with open(transactions_file, encoding='utf-8-sig') as f:
+        tx = list(csv.DictReader(f))
+    with open(os.path.join(os.path.dirname(transactions_file), 'ground_truth.csv'), encoding='utf-8-sig') as f:
+        planted = sum(1 for _ in csv.DictReader(f))
+    return (f"- **Total Transactions:** {len(tx)}\n"
+            f"- **Planted Fraud Transactions:** {planted}\n"
+            f"- **Background (legitimate) Transactions:** {len(tx) - planted}\n"
+            f"- **Period:** {tx[0]['date']} – {tx[-1]['date']}")
 
 SCENARIO_INFO = {
     "01": {
         "title": "Simple Layering (Money Laundering)",
         "description": """
-**Pattern:** Customer A → B → C → D in quick succession
+**Pattern:** cash in → A → B → C → D → cash out, repeated 3 times
 
-This scenario demonstrates a classic layering technique where illicit funds are moved through multiple accounts in rapid succession to obscure their origin. Each layer extracts a commission, gradually reducing the amount.
+Cash is placed just below the reporting threshold into a recently opened account and
+pushed through three more individual accounts within ~4 days, losing 0.5M per hop,
+then withdrawn in cash.
 
-**Account Characteristics:**
-- 4 individual accounts (all active)
-- Shared attributes: same phone number or IP address
-- Customer A: New account (opened recently)
-- Customers B, C, D: Established accounts
+**Planted (roles in ground_truth.csv):**
+- `placement`: cash deposits of 45M, 48.5M, 42M into A (branch, early morning)
+- `layering`: A→B→C→D, one hop per business day, −0.5M per hop
+- `integration`: D withdraws the amount minus 5M in cash
 
-**Fraudulent Transaction Flow:**
-- Day 1: A deposits 45M IRR (cash at branch)
-- Day 1: A → B transfer 44.5M (online banking)
-- Day 2: B → C transfer 44M (mobile)
-- Day 3: C → D transfer 43.5M (online)
-- Day 4: D withdraws 40M (cash at branch)
+**How it is hidden:**
+- Legitimate cash deposits and salaries of similar size (up to ~49.5M)
+- A, B, C, D also send/receive ordinary payments
+- Neutral or empty descriptions
 
-**Fraud Indicators:**
-- Rapid movement through multiple accounts (3 days)
-- Gradual decrease (commission extraction at each layer)
-- All accounts share contact information
-- Unusual pattern for customer D (normally low activity)
+**Indicators:** sub-threshold cash followed by fast pass-through; decreasing amounts; new first account.
 """,
-        "total_transactions": "~80",
-        "fraudulent_transactions": "~15",
-        "legitimate_transactions": "~65",
     },
-
     "02": {
         "title": "Structuring (Smurfing)",
         "description": """
-**Pattern:** Multiple small deposits below reporting threshold
+**Pattern:** 9 smurfs → 15 sub-threshold cash deposits → same-day transfer to one aggregator → one outbound transfer
 
-This scenario demonstrates structuring (also known as smurfing), where large amounts are broken into multiple smaller transactions to avoid currency transaction reporting (CTR) requirements. In Iran, transactions above 50M IRR trigger reporting requirements.
+**Planted:**
+- `structured_deposit`: 15 cash deposits of 43.0–49.5M (threshold 50M) over 8 days
+- `funnel_transfer`: each deposit forwarded the same day to the aggregator
+- `consolidation`: aggregator sends ~96% of the total in one transfer (day 12)
 
-**Account Characteristics:**
-- 1 primary aggregator account
-- 8-10 source accounts (some legitimate customers, some money mules)
-- Mix of individual and joint accounts
+**How it is hidden:**
+- Amounts are not identical; legitimate salaries and cash deposits fall in the same 40–50M band
+- Smurfs also have normal activity
 
-**Fraudulent Transaction Flow:**
-- 15 transactions of 45M IRR each (threshold: 50M)
-- Spread across 10 days
-- Multiple branches (3-4 different branch codes)
-- Some from same IP address (different accounts)
-- Final: aggregator account consolidates to single outbound transfer of 650M
-
-**Fraud Indicators:**
-- Repeated amounts just below threshold
-- Multiple accounts linked by IP/device
-- Temporal clustering (same time window daily)
-- Final consolidation indicates structuring purpose
+**Indicators:** cash-in/transfer-out pairs on the same day; fan-in to one account; consolidation shortly after.
 """,
-        "total_transactions": "~120",
-        "fraudulent_transactions": "~50",
-        "legitimate_transactions": "~70",
     },
-
     "03": {
         "title": "Shell Company Network",
         "description": """
-**Pattern:** Circular business transactions with no legitimate purpose
+**Pattern:** Company A → B → C → A, 4 cycles over ~6 weeks
 
-This scenario demonstrates the use of shell companies to create circular transactions that appear legitimate but serve no business purpose other than to move funds and extract value.
+**Planted:**
+- `round_trip`: 12 transfers between three corporate accounts (different customers),
+  420–560M at the start of each cycle, ~3–7% retained at each hop,
+  sequential invoice numbers with vague services (consulting / management / trading)
 
-**Account Characteristics:**
-- 3 corporate accounts (registered companies)
-- 2 individual accounts (company directors)
-- All companies registered to same residential address
-- Company types: "consulting services", "trading company", "investment LLC"
+**How it is hidden:**
+- Legitimate B2B invoices with the same description style, heavy-tailed amounts (median ~325M, some > 1B)
+- Natural small cycles exist in the noise (false positives for naive cycle queries)
 
-**Fraudulent Transaction Flow:**
-- Day 1: Company A → Company B: 500M IRR (invoice #INV-001)
-- Day 3: Company B → Company C: 450M IRR (invoice #INV-002)
-- Day 5: Company C → Company A: 480M IRR (invoice #INV-003)
-- Repeat cycle 2-3 times with slight variations
-- All invoices for vague services ("consulting", "management fees")
-
-**Fraud Indicators:**
-- Circular flow of funds (A→B→C→A)
-- No legitimate business purpose (vague invoices)
-- Companies at residential addresses
-- No real business operations (no employees, no actual trade)
-- Round-tripping with value extraction
+**Indicators:** repeated closed 3-cycle among the same companies; decreasing amounts; vague invoices.
 """,
-        "total_transactions": "~70",
-        "fraudulent_transactions": "~25",
-        "legitimate_transactions": "~45",
     },
-
     "04": {
         "title": "Terrorist Financing",
         "description": """
-**Pattern:** Small donations aggregating through intermediaries
+**Pattern:** many donors → charity → NGO → foreign-national account
 
-This scenario demonstrates terrorist financing where small donations from many individuals are aggregated through charitable organizations and then transferred to high-risk jurisdictions.
+**Planted:**
+- `donation`: 50 non-corporate donors (incl. foreign nationals), 1–3 donations each of 1–5M over 60 days
+- `aggregation`: charity forwards ~95% of each month's collection to the NGO (2 tranches)
+- `foreign_transfer`: NGO forwards ~90% to a foreign national 2 days later
 
-**Account Characteristics:**
-- 40-50 individual donor accounts (small amounts)
-- 1 charity organization account
-- 1 NGO account
-- 1 foreign entity account (high-risk jurisdiction)
-- 5-10 accounts with foreign national IDs
+Charity/NGO are corporate accounts, preferring names starting with موسسه / سازمان.
 
-**Fraudulent Transaction Flow:**
-- 50 donors: 1-5M IRR each to charity (mixed dates over 2 months)
-- Charity consolidates and transfers 200M to NGO (single transaction)
-- NGO → Foreign entity: 180M IRR (converted to foreign currency equivalent)
-- Some donors use crypto exchanges (if modeled)
-- Cash deposits at multiple branches
+**How it is hidden:**
+- Legitimate merchants also receive many small payments (fan-in hubs)
+- Donation descriptions are ordinary (کمک خیریه / نذر / empty)
 
-**Fraud Indicators:**
-- Aggregation pattern (many small → one large)
-- Rapid pass-through (charity doesn't hold funds, transfers immediately)
-- Ultimate beneficiary in high-risk jurisdiction
-- Charity with no transparent operations
-- Some donors are foreign nationals
+**Indicators:** fan-in then rapid pass-through; charity does not hold funds; foreign end beneficiary.
 """,
-        "total_transactions": "~150",
-        "fraudulent_transactions": "~80",
-        "legitimate_transactions": "~70",
     },
-
     "05": {
-        "title": "Account Takeover + Fraud",
+        "title": "Account Takeover",
         "description": """
-**Pattern:** Legitimate account compromised, behavior changes
+**Pattern:** stable retiree behaviour for 6 months, then a night-time drain
 
-This scenario demonstrates account takeover where a legitimate customer's account is compromised, leading to unauthorized access and fraudulent transactions that deviate from the established behavior pattern.
+**Baseline (not labelled):** monthly 25M pension from a corporate pension payer (07:00–08:59),
+2–3 small purchases and an ATM withdrawal per month. Victim account opened before 1395.
 
-**Account Characteristics:**
-- Customer X (long-standing account, opened 1390, regular pension deposits)
-- Customer Y (new account, suspicious)
-- Customer Z (offshore connection)
+**Planted:**
+- `takeover_transfer`: 500M to a recently opened account (00:00–04:59, mobile banking)
+- `drain`: 200M, 180M, 150M to another beneficiary over the next 4 days, also at night
 
-**Fraudulent Transaction Flow:**
+**How it is hidden:** the population contains legitimate 150–600M personal transfers (car, housing deposit).
 
-*Before takeover (months 1-6):*
-- Regular pension deposits: 25M IRR monthly
-- Small withdrawals: 2-5M for living expenses
-- Normal activity pattern
-
-*Takeover event:*
-- Change of contact info (email, phone added to account)
-- New authorized signer added (Customer Y)
-- Large transfer to new beneficiary: 500M IRR
-
-*After takeover (months 7-9):*
-- 3 rapid transfers: 200M, 180M, 150M to Customer Z
-- Account status changed to closed after final transfer
-- Customer complaint filed (after account emptied)
-
-**Fraud Indicators:**
-- Sudden change in transaction behavior
-- New relationship (authorized signer) added unexpectedly
-- Large transfers to new beneficiaries (not historical pattern)
-- Account closed immediately after funds transferred
-- Deviation from established baseline
+**Indicators:** amount 20× the account's baseline; night hours; new beneficiaries.
 """,
-        "total_transactions": "~60",
-        "fraudulent_transactions": "~20",
-        "legitimate_transactions": "~40",
     },
-
     "06": {
         "title": "Trade-Based Money Laundering",
         "description": """
-**Pattern:** Over/under-invoicing in international trade
+**Pattern:** importer → free-zone broker → foreign exporter, 5 cycles ~20 days apart
 
-This scenario demonstrates trade-based money laundering where the value transferred between parties is misrepresented through false invoicing, allowing funds to move across borders under the guise of legitimate trade.
+**Planted:**
+- `inflated_invoice`: importer pays 0.9–1.2B per proforma
+- `pass_through`: broker forwards ~85% to a foreign-national account 1–3 days later
 
-**Account Characteristics:**
-- Company A (Iran importer - "Tehran Trading Co")
-- Company B (UAE exporter - "Gulf Trading LLC")
-- Company C (intermediary in free zone)
-- Company D (another shell company)
+Over-invoicing itself is not visible in payment data (would need customs declarations);
+what is visible is the repeated pass-through with a fixed ~15% retention.
 
-**Fraudulent Transaction Flow:**
-- Trade transaction: Import goods from B
-- Invoice shows: 1M USD equivalent
-- Actual value: 200K USD (80% over-invoicing)
-- Payment route: A → C → B (through free zone)
-- C charges 15% commission (150K USD)
-- Multiple similar transactions over 3 months
-- Documents show electronics imports (inflated values)
+**How it is hidden:** legitimate B2B payments of similar size (some > 1B) and proforma-style descriptions.
 
-**Fraud Indicators:**
-- Trade invoices significantly inflated
-- Routing through free zone/intermediaries
-- Value transfer through trade misrepresentation
-- Shell companies in free trade zones involved
-- Multiple high-value similar transactions
+**Indicators:** fixed retention ratio; same three parties; regular cadence; foreign end beneficiary.
 """,
-        "total_transactions": "~90",
-        "fraudulent_transactions": "~30",
-        "legitimate_transactions": "~60",
     },
-
     "07": {
         "title": "Insider Fraud (Bank Employee)",
         "description": """
-**Pattern:** Bank employee manipulates accounts
+**Pattern:** dormant accounts of one branch drained at the counter to a few mules
 
-This scenario demonstrates insider fraud where a bank employee abuses their access to customer accounts to initiate unauthorized transactions, targeting vulnerable customers.
+**Planted:**
+- `unauthorized_transfer`: each victim (individual, opened before 1398, same bank and branch)
+  sends 50–200M at the branch counter, roughly every 3 days
+- `cash_out`: the receiving mule withdraws 85–95% in cash within 1–2 days
 
-**Account Characteristics:**
-- 5 dormant accounts (not used in 2+ years)
-- 3 accounts of elderly customers (limited activity)
-- 2 accounts of deceased customers (status not yet updated)
-- 2 accounts with minimal KYC data
-- All manipulated by same bank employee (branch: 5692412)
+Victim count depends on how many eligible accounts the branch has (currently 6).
 
-**Fraudulent Transaction Flow:**
-- Dormant accounts suddenly receive deposits
-- New "customer" accounts opened with minimal KYC
-- Elderly customer accounts: unusual large transfers out
-- Deceased customer accounts: transfers initiated before death recorded
-- All transfers go to accounts controlled by employee or associates
-- 2 accounts: email/phone changed before large transfers
+**How it is hidden:** victims are otherwise silent, so they never appear in noise; mules have normal activity.
 
-**Fraud Indicators:**
-- Dormant accounts reactivated without customer initiation
-- Accounts of vulnerable customers (elderly, deceased) targeted
-- All manipulated accounts handled by same branch/employee
-- KYC incomplete on newly opened accounts
-- Pattern of transfers to same ultimate beneficiaries
+**Indicators:** dormant accounts suddenly active; all victims share a branch; shared beneficiaries; quick cash-out.
 """,
-        "total_transactions": "~50",
-        "fraudulent_transactions": "~15",
-        "legitimate_transactions": "~35",
     },
-
     "08": {
         "title": "Circular Payments (Complex Network)",
         "description": """
-**Pattern:** Money flows through complex network returning to origin
+**Pattern:** 18-account ring returning to the originator, plus 3 side paths
 
-This scenario demonstrates a complex circular payment network designed to obscure the audit trail through multiple hops, delays, and parallel paths.
+**Planted:**
+- `ring_hop`: 18 hops, 1–4 business days apart (~7 weeks), 4–6% retained per hop
+  (1B → ~400M back at the originator)
+- `side_path`: originator → ring member → a member further along the ring (200M each)
 
-**Account Characteristics:**
-- 20 accounts forming circular network
-- 1 originator account (beneficiary of final flow)
-- Mix of individual and corporate accounts
-- Multiple banks involved (5-6 different bank codes)
+**How it is hidden:** neutral descriptions; every ring account also does normal business.
 
-**Fraudulent Transaction Flow:**
-- Account A → Account B → Account C ... → Account S → Account T → Account A
-- Path length: 15-18 hops
-- Delays vary: immediate, 1 day, 3 days, 5 days (randomized)
-- Amount decreases gradually (commissions extracted at each hop): 1B → 950M → 910M ...
-- Some branches split and reconverge (parallel paths)
-- Total duration: 45 days from start to return
-
-**Fraud Indicators:**
-- Circular flow where originator is ultimate beneficiary
-- Complex network to obscure audit trail
-- Commissions extracted at each layer
-- Temporal delays to avoid real-time detection
-- Multiple parallel paths for additional obfuscation
+**Indicators:** long cycle back to origin; monotonic amount decay; side paths that reconverge.
 """,
-        "total_transactions": "~150",
-        "fraudulent_transactions": "~70",
-        "legitimate_transactions": "~80",
     },
 }
 
@@ -290,15 +176,14 @@ def generate_readme(scenario_num: str, transactions_file: str) -> str:
 {info['description']}
 
 ## Transaction Statistics
-- **Total Transactions:** {info['total_transactions']}
-- **Fraudulent Transactions:** {info['fraudulent_transactions']}
-- **Legitimate Transactions:** {info['legitimate_transactions']}
+{stats(transactions_file)}
 
 ## File Structure
 ```
 scenario_""" + scenario_num + """/
-├── transactions.csv    # Transaction data for this scenario
-└── README.md          # This file
+├── transactions.csv    # Bank-side view, no labels
+├── ground_truth.csv    # transaction_id, role of every planted fraud transaction
+└── README.md           # This file
 ```
 
 ## Data Fields
@@ -309,15 +194,15 @@ scenario_""" + scenario_num + """/
 | transaction_id | Unique transaction reference |
 | date | Transaction date (Solar Hijri YYYYMMDD) |
 | time | Transaction time (HHMMSS) |
-| sender_sheba | Originating account Sheba number |
-| receiver_sheba | Receiving account Sheba number |
+| sender_sheba | Originating account Sheba (empty for cash deposits) |
+| receiver_sheba | Receiving account Sheba (empty for cash withdrawals) |
 | amount | Amount in IRR (Iranian Rial) |
-| currency | Currency code (IRR, USD, EUR) |
-| type | Transfer type (برداشت/Withdrawal, واریزت/Transfer, واریت واریزت/Wire) |
+| currency | Currency code (IRR) |
+| type | واریز نقدی (cash in), برداشت نقدی (cash out), انتقال داخلی (same bank), پایا (interbank < 150M), ساتنا (interbank ≥ 150M) |
 | description | Transaction description/narrative |
 | reference | Bank reference number |
-| channel | Transaction channel (شبکه/Online, شعبه/Branch, ATM, موبایل/Mobile) |
-| status | Transaction status (completed, pending, failed, rejected) |
+| channel | اینترنت‌بانک (internet), موبایل‌بانک (mobile), شعبه (branch), ATM |
+| status | Transaction status (completed) |
 
 ## Usage Examples
 
@@ -331,9 +216,9 @@ df = pd.read_csv('transactions.csv', encoding='utf-8-sig')
 # Convert amount to millions
 df['amount_millions'] = df['amount'] / 1_000_000
 
-# Filter fraudulent patterns
-high_value = df[df['amount'] > 100_000_000]
-rapid_transfers = df[df.duplicated(subset=['sender_sheba'], keep=False)]
+# Score a detector against the planted labels
+truth = pd.read_csv('ground_truth.csv', encoding='utf-8-sig')
+df['is_planted'] = df['transaction_id'].isin(truth['transaction_id'])
 ```
 
 ### Analyze Account Relationships
@@ -358,7 +243,7 @@ circular_pairs = df[df.apply(
 2. **Amount Patterns:** Round numbers, threshold avoidance
 3. **Relationship Anomalies:** New beneficiaries, unusual connections
 4. **Temporal Patterns:** Unusual timing, rapid sequences
-5. **Cross-Account Analysis:** Shared identifiers (IP, device, phone)
+5. **Cross-Account Analysis:** Shared branch, shared beneficiaries, account age
 
 ### Red Flags Specific to This Scenario:
 - Review the fraud indicators listed in the overview section

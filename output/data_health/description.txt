@@ -1,17 +1,16 @@
 DATA HEALTH & VALIDATION SUMMARY
 ================================
-Total Nodes: 950
-  - Banks: 10
+Total Nodes: 1839
   - Customers: 150
   - Accounts: 180
-  - Transactions: 610
+  - Transactions: 1499
 
 Validation Results:
-  - Null sender_sheba: 0
-  - Null receiver_sheba: 0
+  - Transactions with neither sender nor receiver: 0
+  - Cash transactions (one side only, expected): 238
   - Negative amounts: 0
-  - Zero amounts (Scenario 07 contact changes): 4
+  - Zero amounts: 0
 
 All Sheba numbers validated with mod-97 algorithm.
 All National IDs validated with check digit.
-Dates in Solar Hijri format (14030101 = 1403/01/01).
+Dates in Solar Hijri format (14030101 = 1403/01/01), validated against the calendar.

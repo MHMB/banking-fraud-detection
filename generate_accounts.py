@@ -10,17 +10,18 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Tuple
 
 # Iranian Bank Codes
+# Iranian bank identifiers as they appear in Sheba digits 5-7
 IRANIAN_BANKS = {
     "056": "بانک سامان",
-    "058": "بانک ملت",
-    "054": "بانک پاسارگاد",
-    "051": "بانک ملی",
+    "012": "بانک ملت",
+    "057": "بانک پاسارگاد",
+    "017": "بانک ملی",
     "018": "بانک تجارت",
-    "020": "بانک سپه",
-    "021": "بانک صادرات",
-    "015": "بانک کشاورزی",
-    "019": "بانک سینا",
-    "052": "بانک شهر",
+    "015": "بانک سپه",
+    "019": "بانک صادرات",
+    "016": "بانک کشاورزی",
+    "059": "بانک سینا",
+    "061": "بانک شهر",
 }
 
 # Account Types
@@ -97,14 +98,6 @@ STREET_TYPES = [
     "خیابان", "خیابان", "بلوار", "کوچه", "خیابان",
 ]
 
-# Branch Codes (7 digits)
-BRANCH_CODES = [
-    "5692412", "5692413", "5692414", "5692415", "5692416",
-    "5692421", "5692422", "5692423", "5692431", "5692432",
-    "1234567", "1234568", "1234569", "1234570", "1234571",
-    "9876543", "9876544", "9876545", "9876546", "9876547",
-    "1111111", "2222222", "3333333", "4444444", "5555555",
-]
 
 class SolarHijriDate:
     """Convert and generate Solar Hijri dates"""
@@ -138,7 +131,7 @@ class IranianIDGenerator:
     def national_id() -> str:
         """Generate valid 10-digit Iranian National ID with check digit"""
         # Generate first 9 digits
-        base = str(random.randint(10000000, 99999999)).zfill(9)
+        base = str(random.randint(1000000, 999999999)).zfill(9)
 
         # Calculate check digit
         check = IranianIDGenerator._calculate_national_id_check(base)
@@ -161,10 +154,17 @@ class IranianIDGenerator:
 
     @staticmethod
     def shab_id() -> str:
-        """Generate 16-character alphanumeric SHAB identifier"""
-        import string
-        chars = string.digits + string.ascii_uppercase
-        return ''.join(random.choice(chars) for _ in range(16))
+        """Generate 16-digit SHAHAB identifier"""
+        return str(random.randint(10**15, 10**16 - 1))
+
+    @staticmethod
+    def legal_entity_id() -> str:
+        """Generate valid 11-digit legal-entity national ID (شناسه ملی)"""
+        base = str(random.randint(10**9, 10**10 - 1))
+        d = int(base[9]) + 2
+        coef = [29, 27, 23, 19, 17] * 2
+        check = sum((int(c) + d) * k for c, k in zip(base, coef)) % 11
+        return base + str(0 if check == 10 else check)
 
     @staticmethod
     def fida_code() -> str:
@@ -242,8 +242,8 @@ class CustomerGenerator:
 
     def generate_foreign_national(self) -> Dict:
         """Generate foreign national customer data"""
-        first_name = random.choice(["John", "Peter", "Hans", "Pierre", "Carlos"])
-        last_name = random.choice(["Smith", "Mueller", "Weber", "Dubois", "Garcia"])
+        first_name = random.choice(["عبدالله", "نورمحمد", "غلام‌سخی", "محمدنبی", "حیدر", "علی‌اکبر"])
+        last_name = random.choice(["احمدزی", "نوری", "حیدری", "الموسوی", "رحیمی", "هزاره"])
         customer_type_code = 2  # Foreign national
 
         fida_code = IranianIDGenerator.fida_code()
@@ -268,7 +268,7 @@ class CustomerGenerator:
         company_name = f"{prefix} {random.choice(LAST_NAMES)} {suffix}"
 
         customer_type_code = 3  # Legal entity
-        national_id = IranianIDGenerator.national_id()  # Used as company registration
+        national_id = IranianIDGenerator.legal_entity_id()
         shab_id = IranianIDGenerator.shab_id()
 
         return {
@@ -339,12 +339,15 @@ class AccountGenerator:
 
             customers.append(customer)
 
+        # Each bank has a few branches; an account is opened at one of its bank's branches
+        branches = {code: [str(random.randint(1000, 9999)) for _ in range(3)] for code in IRANIAN_BANKS}
+
         # Assign customers to accounts (some accounts have multiple customers)
         customer_index = 0
         for i in range(self.num_accounts):
             bank_code = random.choice(list(IRANIAN_BANKS.keys()))
             bank_name = IRANIAN_BANKS[bank_code]
-            branch_code = random.choice(BRANCH_CODES)
+            branch_code = random.choice(branches[bank_code])
             sheba = ShebaGenerator.generate(bank_code)
 
             account_type_code, account_type = random.choice(ACCOUNT_TYPES)
@@ -358,63 +361,28 @@ class AccountGenerator:
             current_date = SolarHijriDate.today()
             report_time = SolarHijriDate.random_time()
 
-            # Determine if account has multiple customers
-            num_relationships = random.choices(
-                [1, 2, 3],
-                weights=[0.85, 0.12, 0.03],
-                k=1
-            )[0]
-
-            # Get customer for this account
-            if num_relationships == 1:
+            # Primary owner plus 0-2 joint owners / authorized signers
+            num_relationships = random.choices([1, 2, 3], weights=[0.85, 0.12, 0.03], k=1)[0]
+            relationships = []
+            for r in range(num_relationships):
                 customer = customers[customer_index % len(customers)]
-                relationships = [
-                    {
-                        'customer': customer,
-                        'relationship_code': 1,  # Account Owner
-                        'relationship_type': 'صاحب حساب',
-                        'share': 100,
-                        'has_withdrawal': True,
-                        'start_date': opening_date,
-                        'end_date': '',
-                    }
-                ]
                 customer_index += 1
-            else:
-                # Joint ownership or authorized signer
-                primary_customer = customers[customer_index % len(customers)]
-                customer_index += 1
-
-                # Primary owner
-                relationships = [
-                    {
-                        'customer': primary_customer,
-                        'relationship_code': 1,  # Account Owner
-                        'relationship_type': 'صاحب حساب',
-                        'share': 50,
-                        'has_withdrawal': True,
-                        'start_date': opening_date,
-                        'end_date': '',
-                    }
-                ]
-
-                # Secondary relationship
-                if num_relationships == 2:
-                    secondary_customer = customers[customer_index % len(customers)]
-                    customer_index += 1
-
-                    rel_type = random.choice([3, 2])  # Joint owner or authorized signer
-                    rel_code, rel_name, rel_share = RELATIONSHIP_TYPES[rel_type - 1]
-
-                    relationships.append({
-                        'customer': secondary_customer,
-                        'relationship_code': rel_code,
-                        'relationship_type': rel_name,
-                        'share': rel_share if rel_code == 3 else 0,
-                        'has_withdrawal': rel_code in [2, 4, 5],
-                        'start_date': opening_date,
-                        'end_date': '',
-                    })
+                rel_code = 1 if r == 0 else random.choice([2, 3])  # owner, then signer or joint owner
+                _, rel_name, _ = RELATIONSHIP_TYPES[rel_code - 1]
+                relationships.append({
+                    'customer': customer,
+                    'relationship_code': rel_code,
+                    'relationship_type': rel_name,
+                    'share': 0,
+                    'has_withdrawal': True,
+                    'start_date': opening_date,
+                    'end_date': '',
+                })
+            # Owners split the account equally; signers hold no share
+            owners = [rel for rel in relationships if rel['relationship_code'] in (1, 3)]
+            for rel in owners:
+                rel['share'] = 100 // len(owners)
+            owners[0]['share'] += 100 - sum(rel['share'] for rel in owners)
 
             account = {
                 'bank_code': bank_code,
@@ -464,16 +432,11 @@ def write_accounts_csv(accounts: List[Dict], output_file: str):
                 customer = rel['customer']
 
                 # Determine ID column names
-                if customer['customer_type_code'] == 2:  # Foreign national
-                    national_id_col = ''
-                    national_id_label = ''
-                    national_id_value = ''
-                    fida_col = customer['fida_code']
-                else:
-                    national_id_col = customer['national_id']
-                    national_id_label = customer['national_id_label']
-                    national_id_value = customer['national_id']
-                    fida_col = ''
+                # Individuals carry شماره ملی, legal entities شناسه ملی, foreigners a FIDA code
+                code = customer['customer_type_code']
+                national_id_col = customer['national_id'] if code == 1 else ''
+                national_id_label = customer['national_id'] if code == 3 else ''
+                fida_col = customer['fida_code']
 
                 row = {
                     'کد بانک': account['bank_code'],

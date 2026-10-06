@@ -2,33 +2,47 @@ SCENARIO 02: STRUCTURING (SMURFING)
 ====================================
 Pattern: Multiple small deposits below 50M reporting threshold
 
-Total Transactions: 86
-Suspicious (>40M): 17
-Aggregator Account: IR..5887
+Total Transactions: 181
+Planted fraud transactions: 31
+Aggregator Account: IR..4268
 
-Structuring Deposits (45M each):
-  14030101 | IR..6296 → IR..5887 | 45.0M
-  14030101 | IR..6657 → IR..5887 | 45.0M
-  14030102 | IR..1686 → IR..5887 | 45.0M
-  14030102 | IR..6511 → IR..5887 | 45.0M
-  14030103 | IR..8460 → IR..5887 | 45.0M
-  14030103 | IR..5779 → IR..5887 | 45.0M
-  14030104 | IR..5634 → IR..5887 | 45.0M
-  14030104 | IR..6289 → IR..5887 | 45.0M
-  14030105 | IR..0466 → IR..5887 | 45.0M
-  14030105 | IR..6296 → IR..5887 | 45.0M
-  14030106 | IR..6657 → IR..5887 | 45.0M
-  14030106 | IR..1686 → IR..5887 | 45.0M
-  14030107 | IR..6511 → IR..5887 | 45.0M
-  14030107 | IR..5779 → IR..5887 | 45.0M
-  14030108 | IR..8460 → IR..5887 | 45.0M
-  14030127 | IR..3760 → IR..3760 | 48.5M
+Structuring (cash deposit -> same-day transfer to aggregator):
+  14030101 | cash → IR..9851 | 45.8M
+  14030101 | cash → IR..0050 | 49.3M
+  14030101 | IR..0050 → IR..4268 | 49.3M
+  14030101 | IR..9851 → IR..4268 | 45.8M
+  14030102 | cash → IR..9463 | 48.0M
+  14030102 | cash → IR..1179 | 48.9M
+  14030102 | IR..9463 → IR..4268 | 48.0M
+  14030102 | IR..1179 → IR..4268 | 48.9M
+  14030104 | cash → IR..8821 | 48.6M
+  14030104 | cash → IR..2797 | 44.0M
+  14030104 | cash → IR..0848 | 43.6M
+  14030104 | cash → IR..1422 | 45.8M
+  14030104 | IR..0848 → IR..4268 | 43.6M
+  14030104 | IR..1422 → IR..4268 | 45.8M
+  14030104 | IR..2797 → IR..4268 | 44.0M
+  14030104 | IR..8821 → IR..4268 | 48.6M
+  14030105 | cash → IR..0438 | 48.1M
+  14030105 | cash → IR..0050 | 49.2M
+  14030105 | IR..0050 → IR..4268 | 49.2M
+  14030105 | IR..0438 → IR..4268 | 48.1M
+  14030106 | cash → IR..9851 | 45.1M
+  14030106 | cash → IR..9463 | 45.6M
+  14030106 | IR..9851 → IR..4268 | 45.1M
+  14030106 | IR..9463 → IR..4268 | 45.6M
+  14030107 | cash → IR..0848 | 46.5M
+  14030107 | cash → IR..1179 | 48.0M
+  14030107 | IR..1179 → IR..4268 | 48.0M
+  14030107 | IR..0848 → IR..4268 | 46.5M
+  14030108 | cash → IR..1422 | 46.3M
+  14030108 | IR..1422 → IR..4268 | 46.3M
 
 Consolidation Transfer:
-  14030112 | IR..5887 → IR..5765 | 650.0M
+  14030112 | IR..4268 → IR..0106 | 675.0M
 
 Key Indicators:
-- 15 transactions of exactly 45M (below 50M threshold)
-- Multiple accounts linked by IP/device
-- Temporal clustering
-- Final consolidation to single 650M outbound
+- 15 cash deposits of 43-49.5M, all below the 50M threshold
+- Each deposit forwarded the same day to one aggregator
+- Temporal clustering (8 days)
+- Final consolidation to a single outbound transfer
